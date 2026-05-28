@@ -1,0 +1,23 @@
+{
+  "name": "Smart Bot - Seu Staff Pessoal",
+  "short_name": "Smart Bot",
+  "description": "Assistente pessoal de IA via WhatsApp",
+  "theme_color": "#a855f7",
+  "background_color": "#050816",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

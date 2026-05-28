@@ -1,0 +1,52 @@
+# ===========================================
+# Smart Bot Staff - Git Ignore
+# ===========================================
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temp
+tmp/
+temp/
+
+# Netlify Functions (build outputs)
+functions/node_modules/
+functions/dist/
+
+# Build artifacts
+*.tgz
+
+# PWA
+dev-dist/

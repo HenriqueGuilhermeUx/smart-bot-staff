@@ -1,0 +1,10 @@
+{
+  "name": "smart-bot-staff-functions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Netlify Functions for Smart Bot Staff",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "openai": "^4.0.0"
+  }
+}
