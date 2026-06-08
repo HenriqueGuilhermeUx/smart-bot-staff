@@ -15,9 +15,14 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY } = process.env
+    const {
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      OPENAI_API_KEY,
+      NEXA_API_URL
+    } = process.env
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OPENAI_API_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OPENAI_API_KEY || !NEXA_API_URL) {
       return {
         statusCode: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -25,7 +30,12 @@ exports.handler = async (event, context) => {
       }
     }
 
-    const { user_id, message, conversation_history } = JSON.parse(event.body || '{}')
+    const {
+      user_id,
+      message,
+      conversation_history,
+      nexaToken
+    } = JSON.parse(event.body || '{}')
 
     if (!message) {
       return {
@@ -35,8 +45,30 @@ exports.handler = async (event, context) => {
       }
     }
 
+    const validateResponse = await fetch(`${NEXA_API_URL}/staff/validate-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: nexaToken })
+    })
+
+    const validateData = await validateResponse.json().catch(() => ({}))
+
+    if (!validateResponse.ok || !validateData.valid) {
+      return {
+        statusCode: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response: 'O Staff Premium é exclusivo para clientes Nexa. Abra pelo app Nexa para liberar seu acesso.',
+          error: 'invalid_nexa_token'
+        })
+      }
+    }
+
+    const nexaUser = validateData.user || {}
+    const finalUserId = user_id || nexaUser.userId || nexaUser.email
+
     async function saveMemory(memoryText) {
-      if (!user_id || !memoryText) return false
+      if (!finalUserId || !memoryText) return false
 
       const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_memories`, {
         method: 'POST',
@@ -47,7 +79,7 @@ exports.handler = async (event, context) => {
           Prefer: 'return=minimal'
         },
         body: JSON.stringify({
-          user_id,
+          user_id: finalUserId,
           category: 'geral',
           memory: memoryText
         })
@@ -57,10 +89,10 @@ exports.handler = async (event, context) => {
     }
 
     async function getMemories() {
-      if (!user_id) return []
+      if (!finalUserId) return []
 
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(user_id)}&select=category,memory,created_at&order=created_at.desc&limit=50`,
+        `${SUPABASE_URL}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(finalUserId)}&select=category,memory,created_at&order=created_at.desc&limit=50`,
         {
           method: 'GET',
           headers: {
@@ -109,6 +141,11 @@ exports.handler = async (event, context) => {
       : 'Nenhuma memória salva ainda.'
 
     const systemPrompt = `Você é o Staff by Nexa, assistente pessoal premium do ecossistema Nexa.
+
+Usuário Nexa:
+- Nome: ${nexaUser.name || 'não informado'}
+- E-mail: ${nexaUser.email || 'não informado'}
+- ID: ${nexaUser.userId || 'não informado'}
 
 Você ajuda o usuário com:
 📅 Agenda
@@ -163,32 +200,30 @@ Regras:
       aiData.choices?.[0]?.message?.content ||
       'Desculpe, não consegui processar sua mensagem.'
 
-    if (user_id) {
-      try {
-        const saveMessage = async (content, direction) => {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: SUPABASE_SERVICE_ROLE_KEY,
-              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              Prefer: 'return=minimal'
-            },
-            body: JSON.stringify({
-              user_id,
-              content,
-              direction
-            })
+    try {
+      const saveMessage = async (content, direction) => {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            Prefer: 'return=minimal'
+          },
+          body: JSON.stringify({
+            user_id: finalUserId,
+            content,
+            direction
           })
+        })
 
-          return response.ok
-        }
-
-        await saveMessage(message, 'inbound')
-        await saveMessage(aiMessage, 'outbound')
-      } catch (dbError) {
-        console.log('Could not save to database, continuing...')
+        return response.ok
       }
+
+      await saveMessage(message, 'inbound')
+      await saveMessage(aiMessage, 'outbound')
+    } catch (dbError) {
+      console.log('Could not save to database, continuing...')
     }
 
     return {
