@@ -1,13 +1,11 @@
 // Simple REST API calls only - no Supabase client to avoid WebSocket issues
 
-// Configure CORS for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 exports.handler = async (event, context) => {
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -27,9 +25,6 @@ exports.handler = async (event, context) => {
       }
     }
 
-    const supabase = null // Not used anymore - using REST API directly
-
-    // Parse request body
     const { user_id, message, conversation_history } = JSON.parse(event.body || '{}')
 
     if (!message) {
@@ -40,38 +35,102 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Build conversation for OpenAI
-    const systemPrompt = `Você é o Smart Bot Staff, um assistente pessoal de IA premium desenvolvido pela SmartBots. Você é o "Staff" pessoal do usuário - um assistente proativo, amigável e eficiente.
+    async function saveMemory(memoryText) {
+      if (!user_id || !memoryText) return false
 
-Suas principais características:
-- Personalidade: amigável, prestativo, proativo e eficiente
-- Responde em português brasileiro com linguagem natural e informal
-- NUNCA revela que é uma IA, age como um assistente pessoal real
-- Mantém contexto da conversa e lembra de informações importantes
-- Usa emoji quando apropriado para deixar mais humano
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_memories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          user_id,
+          category: 'geral',
+          memory: memoryText
+        })
+      })
 
-SUA FORMA DE AGIR:
-1. Seja PROATIVO - sugira ações, lembretes e melhorias
-2. Use linguagem natural brasileira - como um amigo prestativo
-3. Estruture respostas com bullets ou linhas quando ajudar
-4. Faça perguntas para entender melhor as necessidades
-5. Lembre-se de informações importantes e mencione quando relevante
+      return response.ok
+    }
 
-MÓDULOS QUE VOCÊ PODE AJUDAR:
-📅 Agenda: lembretes, compromissos, planejar eventos
-💰 Finanças: controlar gastos, orçamentos, investimentos
-❤️ Saúde: lembretes de meds, exercícios, bem-estar
-💼 Trabalho: organizar tarefas, prazos, produtividade
-🏠 Casa: lembretes de manutenção, contas, organização
-💡 Geral: pesquisas, textos, cálculos, qualquer dúvida
+    async function getMemories() {
+      if (!user_id) return []
 
-EXEMPLOS DE COMO RESPONDER:
-- "Entendi! Vou registrar isso e te lembrar no dia."
-- "Ótima pergunta! Posso te ajudar com isso."
-- "Você tem uma reunião às 15h amanhã, quer que eu crie um lembrete?"
-- "Vi que você mencionou o IPVA semana passada, já pagou?"
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(user_id)}&select=category,memory,created_at&order=created_at.desc&limit=50`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        }
+      )
 
-Nunca forneça informações confidenciais ou sensíveis, e sempre priorize a privacidade do usuário.`
+      if (!response.ok) return []
+
+      return await response.json()
+    }
+
+    const lowerMessage = String(message).toLowerCase().trim()
+
+    if (lowerMessage.startsWith('lembrar:')) {
+      const memoryText = message.replace(/lembrar:/i, '').trim()
+
+      if (!memoryText) {
+        return {
+          statusCode: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            response: 'Me diga o que devo lembrar. Exemplo: lembrar: meu carro é um Corolla 2023'
+          })
+        }
+      }
+
+      await saveMemory(memoryText)
+
+      return {
+        statusCode: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response: `Perfeito. Vou lembrar disso: ${memoryText}`,
+          timestamp: new Date().toISOString()
+        })
+      }
+    }
+
+    const memories = await getMemories()
+
+    const memoryText = memories.length
+      ? memories.map((m) => `- ${m.memory}`).join('\n')
+      : 'Nenhuma memória salva ainda.'
+
+    const systemPrompt = `Você é o Staff by Nexa, assistente pessoal premium do ecossistema Nexa.
+
+Você ajuda o usuário com:
+📅 Agenda
+💰 Finanças
+❤️ Saúde
+💼 Trabalho
+🏠 Casa
+📄 Documentos
+🔒 Segurança
+💡 Organização pessoal
+
+Memórias conhecidas do usuário:
+${memoryText}
+
+Regras:
+- Responda em português brasileiro
+- Seja amigável, útil e direto
+- Use as memórias quando forem relevantes
+- Nunca invente memórias
+- Se o usuário disser algo importante sobre vida, carro, saúde, família, rotina, finanças ou documentos, sugira: "Posso guardar isso como memória se você escrever: lembrar: ..."
+- Não diga que é IA
+- Priorize privacidade e segurança`
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -79,18 +138,17 @@ Nunca forneça informações confidenciais ou sensíveis, e sempre priorize a pr
       { role: 'user', content: message }
     ]
 
-    // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: messages,
+        messages,
         max_tokens: 1000,
-        temperature: 0.8
+        temperature: 0.7
       })
     })
 
@@ -101,27 +159,28 @@ Nunca forneça informações confidenciais ou sensíveis, e sempre priorize a pr
     }
 
     const aiData = await openaiResponse.json()
-    const aiMessage = aiData.choices?.[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.'
+    const aiMessage =
+      aiData.choices?.[0]?.message?.content ||
+      'Desculpe, não consegui processar sua mensagem.'
 
-    // Save message to database if user is authenticated
     if (user_id) {
       try {
-        // Create a simple REST call instead of using Supabase client (avoids WebSocket issue)
         const saveMessage = async (content, direction) => {
           const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_messages`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': SUPABASE_SERVICE_ROLE_KEY,
-              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              'Prefer': 'return=minimal'
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              Prefer: 'return=minimal'
             },
             body: JSON.stringify({
-              user_id: user_id,
-              content: content,
-              direction: direction
+              user_id,
+              content,
+              direction
             })
           })
+
           return response.ok
         }
 
@@ -140,9 +199,9 @@ Nunca forneça informações confidenciais ou sensíveis, e sempre priorize a pr
         timestamp: new Date().toISOString()
       })
     }
-
   } catch (error) {
     console.error('Chat function error:', error)
+
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
