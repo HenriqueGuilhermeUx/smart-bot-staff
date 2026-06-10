@@ -1417,11 +1417,60 @@ function SignupForm({ onSwitchToLogin, onSuccess }: { onSwitchToLogin: () => voi
 // ===========================================
 // MAIN APP
 // ===========================================
+const NEXA_API_URL = 'https://nexa-backend-p2u0.onrender.com/api/v1'
+
+function getStoredNexaStaffUser() {
+  try {
+    const stored = localStorage.getItem('staff_nexa_user')
+    if (!stored) return null
+    return JSON.parse(stored)
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState<any>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup')
   const [showDashboard, setShowDashboard] = useState(false)
+
+  const loginWithNexaToken = async (nexaToken: string) => {
+    try {
+      const response = await fetch(`${NEXA_API_URL}/nexa-id/validate/${nexaToken}`)
+      const data = await response.json()
+
+      if (!data.success || !data.user) {
+        return false
+      }
+
+      const nexaUser = {
+        id: data.user.id,
+        email: data.user.email,
+        user_metadata: {
+          name: data.user.fullName,
+          nexaId: data.user.nexaId,
+          username: data.user.username,
+          walletAddress: data.user.walletAddress,
+        },
+        app_metadata: {
+          provider: 'nexa',
+        },
+      }
+
+      localStorage.setItem('staff_nexa_user', JSON.stringify(nexaUser))
+      localStorage.setItem('nexaToken', nexaToken)
+
+      setUser(nexaUser)
+      setShowDashboard(true)
+
+      window.history.replaceState({}, document.title, window.location.pathname)
+
+      return true
+    } catch {
+      return false
+    }
+  }
 
   const handleAuthSuccess = () => {
     setShowAuthModal(false)
@@ -1429,18 +1478,45 @@ export default function App() {
     setUser(supabase.auth.currentUser)
   }
 
-  // Redirect logged in users to dashboard immediately
   useEffect(() => {
-    getSession().then(session => {
+    const start = async () => {
+      const params = new URLSearchParams(window.location.search)
+      const tokenFromUrl = params.get('nexaToken')
+
+      if (tokenFromUrl) {
+        const ok = await loginWithNexaToken(tokenFromUrl)
+        if (ok) return
+      }
+
+      const storedNexaUser = getStoredNexaStaffUser()
+
+      if (storedNexaUser) {
+        setUser(storedNexaUser)
+        setShowDashboard(true)
+        return
+      }
+
+      const session = await getSession()
+
       if (session?.user) {
         setUser(session.user)
         setShowDashboard(true)
       }
-    })
+    }
 
-    const { data: { subscription } } = onAuthStateChange((user) => {
-      if (user) {
-        setUser(user)
+    start()
+
+    const { data: { subscription } } = onAuthStateChange((supabaseUser) => {
+      const storedNexaUser = getStoredNexaStaffUser()
+
+      if (storedNexaUser) {
+        setUser(storedNexaUser)
+        setShowDashboard(true)
+        return
+      }
+
+      if (supabaseUser) {
+        setUser(supabaseUser)
         setShowDashboard(true)
       }
     })
@@ -1454,6 +1530,8 @@ export default function App() {
   }
 
   const handleLogout = async () => {
+    localStorage.removeItem('staff_nexa_user')
+    localStorage.removeItem('nexaToken')
     await signOut()
     setUser(null)
     setShowDashboard(false)
@@ -1462,7 +1540,6 @@ export default function App() {
   const handleSwitchToLogin = () => setAuthMode('login')
   const handleSwitchToSignup = () => setAuthMode('signup')
 
-  // Show dashboard if user is logged in
   if (user && showDashboard) {
     return (
       <div className="min-h-screen bg-dark">
