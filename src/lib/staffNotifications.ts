@@ -12,7 +12,7 @@ function notificationId(taskId: string) {
     hash = ((hash << 5) - hash) + taskId.charCodeAt(index)
     hash |= 0
   }
-  return Math.max(1, Math.abs(hash))
+  return (Math.abs(hash) % 2147483000) + 1
 }
 
 export async function notificationsAreEnabled(): Promise<boolean> {
