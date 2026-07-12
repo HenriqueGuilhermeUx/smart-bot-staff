@@ -1,24 +1,32 @@
 {
   "name": "smart-bot-staff",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:init": "npm run build && npx cap add android",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:run": "npm run android:sync && npx cap run android"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/local-notifications": "^8.4.1",
     "@supabase/supabase-js": "^2.106.1",
-    "lucide-react": "^0.364.0"
+    "lucide-react": "^0.364.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.1",
-    "tailwindcss": "^3.4.16",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss": "^3.4.16",
+    "vite": "^6.0.1"
   }
 }
