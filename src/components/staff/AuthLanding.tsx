@@ -3,6 +3,7 @@ import { ArrowRight, Bell, Check, CheckCircle2, ChevronRight, Loader2, Sparkles,
 import { signIn, signUp } from '@/lib/supabase'
 import type { AuthMode } from '@/lib/staffUi'
 import { StaffLogo } from '@/components/staff/Brand'
+import { LegalFooter } from '@/components/staff/LegalFooter'
 
 export function StaffLanding({ onStart, nexaBenefit }: { onStart: (mode: AuthMode) => void; nexaBenefit: boolean }) {
   return (
@@ -76,6 +77,8 @@ export function StaffLanding({ onStart, nexaBenefit }: { onStart: (mode: AuthMod
           </section>
         </div>
       </main>
+
+      <LegalFooter />
     </div>
   )
 }

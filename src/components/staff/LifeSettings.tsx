@@ -18,6 +18,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/staffUi'
+import { LegalFooter } from '@/components/staff/LegalFooter'
 
 const LIFE_AREAS = [
   { id: 'financas', label: 'Finanças', description: 'Contas, boletos e gastos', icon: Wallet },
@@ -97,6 +98,8 @@ export function SettingsView({ notificationsEnabled, onNotifications, onLogout, 
           <LogOut className="w-5 h-5" /> Sair da conta
         </button>
       </div>
+
+      <LegalFooter compact />
     </div>
   )
 }
