@@ -20,6 +20,15 @@ import {
   type StaffMessage,
   type StaffTask,
 } from '@/lib/staffData'
+import {
+  cancelTaskNotification,
+  notificationsAreEnabled,
+  requestStaffNotificationPermission,
+  scheduleTaskNotification,
+  showNotificationTest,
+  synchronizeTaskNotifications,
+  usesNativeNotifications,
+} from '@/lib/staffNotifications'
 import { cn, type StaffScreen } from '@/lib/staffUi'
 import { StaffLogo } from '@/components/staff/Brand'
 import { AddTaskModal, TasksView, TodayView } from '@/components/staff/TaskViews'
@@ -34,23 +43,36 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAddTask, setShowAddTask] = useState(false)
   const [pendingChatPrompt, setPendingChatPrompt] = useState('')
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    typeof Notification !== 'undefined' && Notification.permission === 'granted',
-  )
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const nexaConnected = Boolean(localStorage.getItem('nexaToken'))
 
   useEffect(() => {
     let mounted = true
-    Promise.all([loadTasks(user.id), loadMessages(user.id)]).then(([taskData, messageData]) => {
+
+    Promise.all([loadTasks(user.id), loadMessages(user.id)]).then(async ([taskData, messageData]) => {
       if (!mounted) return
+
       setTasks(taskData)
       setMessages(messageData)
       setLoading(false)
+
+      const enabled = await notificationsAreEnabled()
+      if (!mounted) return
+      setNotificationsEnabled(enabled)
+
+      if (enabled) {
+        await synchronizeTaskNotifications(taskData).catch((error) => {
+          console.error('Erro ao sincronizar notificações:', error)
+        })
+      }
     })
+
     return () => { mounted = false }
   }, [user.id])
 
   useEffect(() => {
+    if (usesNativeNotifications()) return
+
     const interval = window.setInterval(() => {
       if (!notificationsEnabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
       const now = Date.now()
@@ -65,6 +87,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
           }
         })
     }, 30000)
+
     return () => window.clearInterval(interval)
   }, [tasks, notificationsEnabled])
 
@@ -79,25 +102,44 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
   async function handleCreate(input: NewStaffTask) {
     const task = await createTask(user.id, input)
     setTasks((current) => [task, ...current])
+
+    if (notificationsEnabled) {
+      await scheduleTaskNotification(task).catch((error) => {
+        console.error('Erro ao programar lembrete:', error)
+      })
+    }
+
     return task
   }
 
   async function handleToggle(task: StaffTask) {
     const updated = await updateTask(user.id, task.id, { status: task.status === 'completed' ? 'pending' : 'completed' })
-    if (updated) setTasks((current) => current.map((item) => item.id === task.id ? updated : item))
+    if (!updated) return
+
+    setTasks((current) => current.map((item) => item.id === task.id ? updated : item))
+
+    if (updated.status === 'completed') {
+      await cancelTaskNotification(updated.id).catch(() => undefined)
+    } else if (notificationsEnabled) {
+      await scheduleTaskNotification(updated).catch(() => undefined)
+    }
   }
 
   async function handleDelete(task: StaffTask) {
     await deleteTask(user.id, task.id)
+    await cancelTaskNotification(task.id).catch(() => undefined)
     setTasks((current) => current.filter((item) => item.id !== task.id))
   }
 
   async function toggleNotifications() {
-    if (typeof Notification === 'undefined') return
-    const permission = await Notification.requestPermission()
-    setNotificationsEnabled(permission === 'granted')
-    if (permission === 'granted') {
-      new Notification('Staff', { body: 'Notificações ativadas com sucesso.', icon: '/icon-192.png' })
+    const granted = await requestStaffNotificationPermission()
+    setNotificationsEnabled(granted)
+
+    if (granted) {
+      await showNotificationTest().catch(() => undefined)
+      await synchronizeTaskNotifications(tasks).catch((error) => {
+        console.error('Erro ao programar notificações:', error)
+      })
     }
   }
 
@@ -124,10 +166,10 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
         <div className="h-16 px-4 md:px-6 flex items-center justify-between">
           <StaffLogo compact />
           <div className="flex items-center gap-2">
-            <button onClick={toggleNotifications} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-purple-300">
+            <button onClick={toggleNotifications} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-purple-300" aria-label="Configurar notificações">
               {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
             </button>
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2.5 rounded-xl bg-slate-900 border border-slate-800"><Menu className="w-5 h-5" /></button>
+            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2.5 rounded-xl bg-slate-900 border border-slate-800" aria-label="Abrir menu"><Menu className="w-5 h-5" /></button>
           </div>
         </div>
       </header>
@@ -159,7 +201,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
         </div>
       </aside>
 
-      {menuOpen && <button onClick={() => setMenuOpen(false)} className="fixed inset-0 z-20 bg-black/60 md:hidden" />}
+      {menuOpen && <button onClick={() => setMenuOpen(false)} className="fixed inset-0 z-20 bg-black/60 md:hidden" aria-label="Fechar menu" />}
 
       <main className="pt-20 pb-24 md:pb-8 md:pl-64 min-h-screen">
         <div className="p-4 md:p-7">
