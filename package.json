@@ -1,10 +1,11 @@
 {
   "name": "smart-bot-staff",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc -b",
     "build": "vite build",
     "preview": "vite preview",
     "android:init": "npm run build && npx cap add android",
@@ -23,6 +24,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "8.4.1",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",

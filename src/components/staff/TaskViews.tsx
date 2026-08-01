@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trash2,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import type { NewStaffTask, StaffCategory, StaffTask } from '@/lib/staffData'
 import { parseStaffCommand } from '@/lib/staffParser'
@@ -129,6 +130,12 @@ export function TodayView({ user, tasks, onCreate, onToggle, onDelete, onNavigat
   const today = pending.filter((task) => isToday(task.due_at))
   const overdue = pending.filter(isOverdue)
   const completedToday = tasks.filter((task) => task.status === 'completed' && task.completed_at && isToday(task.completed_at))
+  const stats: Array<{ label: string; value: string; icon: LucideIcon; style: string }> = [
+    { label: 'Hoje', value: String(today.length), icon: Calendar, style: 'text-purple-300 bg-purple-500/10' },
+    { label: 'Atrasadas', value: String(overdue.length), icon: Clock, style: 'text-rose-300 bg-rose-500/10' },
+    { label: 'Pendentes', value: String(pending.length), icon: ListTodo, style: 'text-amber-300 bg-amber-500/10' },
+    { label: 'Concluídas hoje', value: String(completedToday.length), icon: CheckCircle2, style: 'text-emerald-300 bg-emerald-500/10' },
+  ]
 
   async function addQuick(event: FormEvent) {
     event.preventDefault()
@@ -165,14 +172,9 @@ export function TodayView({ user, tasks, onCreate, onToggle, onDelete, onNavigat
       </form>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          ['Hoje', String(today.length), Calendar, 'text-purple-300 bg-purple-500/10'],
-          ['Atrasadas', String(overdue.length), Clock, 'text-rose-300 bg-rose-500/10'],
-          ['Pendentes', String(pending.length), ListTodo, 'text-amber-300 bg-amber-500/10'],
-          ['Concluídas hoje', String(completedToday.length), CheckCircle2, 'text-emerald-300 bg-emerald-500/10'],
-        ].map(([label, value, Icon, style]) => (
-          <div key={String(label)} className="glass-card p-5 flex items-center gap-4">
-            <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center', String(style))}><Icon className="w-5 h-5" /></div>
+        {stats.map(({ label, value, icon: Icon, style }) => (
+          <div key={label} className="glass-card p-5 flex items-center gap-4">
+            <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center', style)}><Icon className="w-5 h-5" /></div>
             <div><p className="text-2xl font-black text-white">{value}</p><p className="text-sm text-slate-500">{label}</p></div>
           </div>
         ))}
