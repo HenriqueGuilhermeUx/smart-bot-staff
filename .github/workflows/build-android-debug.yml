@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/**'
       - 'netlify/functions/**'
+      - 'supabase/migrations/**'
       - 'public/**'
       - 'index.html'
       - 'package.json'
@@ -19,6 +20,7 @@ on:
     paths:
       - 'src/**'
       - 'netlify/functions/**'
+      - 'supabase/migrations/**'
       - 'public/**'
       - 'index.html'
       - 'package.json'
@@ -107,5 +109,13 @@ jobs:
         with:
           name: staff-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Supabase migration
+        uses: actions/upload-artifact@v7
+        with:
+          name: staff-calendar-automations-sql
+          path: supabase/migrations/20260801_staff_calendar_automations_v1.sql
           if-no-files-found: error
           retention-days: 14
