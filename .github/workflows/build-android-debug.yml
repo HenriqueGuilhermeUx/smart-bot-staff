@@ -2,11 +2,23 @@ name: Build Staff Android Debug
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'netlify/functions/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/build-android-debug.yml'
   push:
     branches:
       - main
     paths:
       - 'src/**'
+      - 'netlify/functions/**'
       - 'public/**'
       - 'index.html'
       - 'package.json'
@@ -50,7 +62,10 @@ jobs:
           rm -f package-lock.json
           npm cache clean --force
           npm install --no-audit --no-fund
-          npm ls @capacitor/core @capacitor/android @capacitor/local-notifications @capacitor/cli
+          npm ls @capacitor/core @capacitor/android @capacitor/local-notifications @capacitor/cli typescript
+
+      - name: Type-check application
+        run: npm run typecheck
 
       - name: Build web application
         env:
