@@ -58,7 +58,7 @@ jobs:
           node --version
           npm --version
           java -version
-          magick -version | head -n 2
+          convert -version | head -n 2
 
       - name: Install dependencies cleanly
         run: |
@@ -134,9 +134,9 @@ jobs:
       - name: Generate Google Play image assets
         run: |
           mkdir -p release-assets
-          magick -background none public/staff-icon.svg -resize 512x512 release-assets/staff-play-icon-512.png
-          magick -background '#050816' public/staff-feature-graphic.svg -resize 1024x500! release-assets/staff-feature-graphic-1024x500.png
-          magick -background '#050816' public/staff-splash.svg -resize 2732x2732! release-assets/staff-splash-2732.png
+          convert -background none public/staff-icon.svg -resize 512x512 release-assets/staff-play-icon-512.png
+          convert -background '#050816' public/staff-feature-graphic.svg -resize 1024x500! release-assets/staff-feature-graphic-1024x500.png
+          convert -background '#050816' public/staff-splash.svg -resize 2732x2732! release-assets/staff-splash-2732.png
           identify release-assets/*.png
 
       - name: Prepare release signing
