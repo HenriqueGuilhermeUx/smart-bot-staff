@@ -1,6 +1,6 @@
 {
   "name": "smart-bot-staff",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,8 @@
     "@capacitor/android": "8.4.1",
     "@capacitor/core": "8.4.1",
     "@capacitor/local-notifications": "8.2.0",
+    "@capgo/capacitor-speech-recognition": "8.1.10",
+    "@capgo/capacitor-speech-synthesis": "8.0.20",
     "@supabase/supabase-js": "^2.106.1",
     "lucide-react": "^0.364.0",
     "react": "^18.3.1",
