@@ -58,7 +58,6 @@ jobs:
           node --version
           npm --version
           java -version
-          convert -version | head -n 2
 
       - name: Install dependencies cleanly
         run: |
@@ -66,7 +65,7 @@ jobs:
           rm -f package-lock.json
           npm cache clean --force
           npm install --no-audit --no-fund
-          npm ls @capacitor/core @capacitor/android @capacitor/local-notifications @capgo/capacitor-speech-recognition @capgo/capacitor-speech-synthesis @capacitor/assets @capacitor/cli typescript
+          npm ls @capacitor/core @capacitor/android @capacitor/local-notifications @capgo/capacitor-speech-recognition @capgo/capacitor-speech-synthesis @capacitor/assets sharp @capacitor/cli typescript
 
       - name: Type-check application
         run: npm run typecheck
@@ -134,10 +133,24 @@ jobs:
       - name: Generate Google Play image assets
         run: |
           mkdir -p release-assets
-          convert -background none public/staff-icon.svg -resize 512x512 release-assets/staff-play-icon-512.png
-          convert -background '#050816' public/staff-feature-graphic.svg -resize 1024x500! release-assets/staff-feature-graphic-1024x500.png
-          convert -background '#050816' public/staff-splash.svg -resize 2732x2732! release-assets/staff-splash-2732.png
-          identify release-assets/*.png
+          node --input-type=module <<'NODE'
+          import sharp from 'sharp'
+
+          const jobs = [
+            ['public/staff-icon.svg', 'release-assets/staff-play-icon-512.png', 512, 512],
+            ['public/staff-feature-graphic.svg', 'release-assets/staff-feature-graphic-1024x500.png', 1024, 500],
+            ['public/staff-splash.svg', 'release-assets/staff-splash-2732.png', 2732, 2732],
+          ]
+
+          for (const [input, output, width, height] of jobs) {
+            await sharp(input, { density: 300 })
+              .resize(width, height, { fit: 'fill' })
+              .png()
+              .toFile(output)
+            const metadata = await sharp(output).metadata()
+            console.log(`${output}: ${metadata.width}x${metadata.height}`)
+          }
+          NODE
 
       - name: Prepare release signing
         env:
