@@ -60,7 +60,9 @@ function friendlyRecognitionError(code?: string) {
   if (normalized.includes('permission') || normalized.includes('denied') || normalized.includes('not-allowed')) {
     return 'Permita o acesso ao microfone para falar com o Staff.'
   }
-  if (normalized.includes('no-speech')) return 'Não consegui ouvir sua fala. Tente novamente mais perto do microfone.'
+  if (normalized.includes('no-speech') || normalized.includes('no_match') || normalized.includes('nomatch')) {
+    return 'Não consegui ouvir sua fala. Tente novamente mais perto do microfone.'
+  }
   if (normalized.includes('network')) return 'O serviço de voz está sem conexão. Tente novamente ou digite sua solicitação.'
   if (normalized.includes('busy') || normalized.includes('recognizer')) return 'O reconhecimento de voz está ocupado. Aguarde um instante e tente novamente.'
   return 'Não consegui reconhecer sua fala. Tente novamente.'
@@ -106,7 +108,6 @@ export async function stopStaffListening() {
     await SpeechRecognition.forceStop({ timeout: 1200 }).catch(async () => {
       await SpeechRecognition.stop().catch(() => undefined)
     })
-    nativeListening = false
     return
   }
   activeBrowserRecognition?.stop()
@@ -140,48 +141,92 @@ async function listenNative(callbacks: StaffVoiceCallbacks) {
     .isOnDeviceRecognitionAvailable({ language: VOICE_LANGUAGE })
     .catch(() => ({ available: false }))
 
-  let lastPartial = ''
-  const partialListener = await SpeechRecognition.addListener('partialResults', (event) => {
-    const partial = normalizeTranscript(event.accumulatedText || event.matches?.[0] || event.accumulated || '')
-    if (!partial) return
-    lastPartial = partial
-    callbacks.onPartial?.(partial)
-  })
-  const errorListener = await SpeechRecognition.addListener('error', (event) => {
-    callbacks.onError?.(friendlyRecognitionError(event.code || event.message))
-  })
-  const stateListener = await SpeechRecognition.addListener('listeningState', (event) => {
-    if (event.state === 'started' || event.state === 'startingListening') callbacks.onState?.('listening')
-  })
+  return new Promise<string>(async (resolve, reject) => {
+    let lastPartial = ''
+    let settled = false
+    let finishing = false
+    let timeoutId = 0
 
-  try {
-    nativeListening = true
-    callbacks.onState?.('listening')
-    const result = await SpeechRecognition.start({
-      language: VOICE_LANGUAGE,
-      maxResults: 3,
-      partialResults: true,
-      popup: false,
-      addPunctuation: true,
-      allowForSilence: 1400,
-      useOnDeviceRecognition: onDevice.available,
-      contextualStrings: [
-        'Staff', 'agenda', 'automação', 'reunião', 'consulta', 'lembrete', 'tarefa',
-        'resumo diário', 'planejamento semanal', 'cardiologista', 'condomínio',
-      ],
-    })
-    const transcript = normalizeTranscript(result.matches?.[0] || lastPartial)
-    if (!transcript) throw new Error('no-speech')
-    callbacks.onState?.('processing')
-    return transcript
-  } finally {
-    nativeListening = false
-    await Promise.all([
-      partialListener.remove(),
-      errorListener.remove(),
-      stateListener.remove(),
-    ]).catch(() => undefined)
-  }
+    const listeners = await Promise.all([
+      SpeechRecognition.addListener('partialResults', (event) => {
+        const partial = normalizeTranscript(event.accumulatedText || event.matches?.[0] || event.accumulated || '')
+        if (!partial) return
+        lastPartial = partial
+        callbacks.onPartial?.(partial)
+      }),
+      SpeechRecognition.addListener('error', (event) => {
+        if (settled || finishing) return
+        const message = friendlyRecognitionError(event.code || event.message)
+        callbacks.onError?.(message)
+        void finish(false, message)
+      }),
+      SpeechRecognition.addListener('listeningState', (event) => {
+        if (event.state === 'started' || event.state === 'startingListening') callbacks.onState?.('listening')
+        if (event.state === 'stopped' && !settled && !finishing) void finish(true)
+      }),
+    ])
+
+    async function cleanup() {
+      nativeListening = false
+      window.clearTimeout(timeoutId)
+      await Promise.all(listeners.map((listener) => listener.remove())).catch(() => undefined)
+    }
+
+    async function finish(success: boolean, explicitError?: string) {
+      if (settled || finishing) return
+      finishing = true
+
+      if (success) {
+        const cached = await SpeechRecognition.getLastPartialResult().catch(() => ({ available: false, text: '', matches: [] as string[] }))
+        const transcript = normalizeTranscript(cached.text || cached.matches?.[0] || lastPartial)
+        await cleanup()
+        settled = true
+        finishing = false
+        if (!transcript) {
+          reject(new Error('no-speech'))
+          return
+        }
+        callbacks.onState?.('processing')
+        resolve(transcript)
+        return
+      }
+
+      await cleanup()
+      settled = true
+      finishing = false
+      reject(new Error(explicitError || 'recognition-error'))
+    }
+
+    try {
+      nativeListening = true
+      callbacks.onState?.('listening')
+      const immediate = await SpeechRecognition.start({
+        language: VOICE_LANGUAGE,
+        maxResults: 3,
+        partialResults: true,
+        popup: false,
+        addPunctuation: true,
+        allowForSilence: 1400,
+        useOnDeviceRecognition: onDevice.available,
+        contextualStrings: [
+          'Staff', 'agenda', 'automação', 'reunião', 'consulta', 'lembrete', 'tarefa',
+          'resumo diário', 'planejamento semanal', 'cardiologista', 'condomínio',
+        ],
+      })
+
+      const immediateText = normalizeTranscript(immediate.matches?.[0] || '')
+      if (immediateText) {
+        lastPartial = immediateText
+        callbacks.onPartial?.(immediateText)
+      }
+
+      timeoutId = window.setTimeout(() => {
+        void SpeechRecognition.forceStop({ timeout: 800 }).catch(() => undefined)
+      }, 25000)
+    } catch (error) {
+      await finish(false, error instanceof Error ? error.message : String(error))
+    }
+  })
 }
 
 function listenWeb(callbacks: StaffVoiceCallbacks) {
