@@ -136,19 +136,36 @@ jobs:
           node --input-type=module <<'NODE'
           import sharp from 'sharp'
 
-          const jobs = [
-            ['public/staff-icon.svg', 'release-assets/staff-play-icon-512.png', 512, 512],
-            ['public/staff-feature-graphic.svg', 'release-assets/staff-feature-graphic-1024x500.png', 1024, 500],
-            ['public/staff-splash.svg', 'release-assets/staff-splash-2732.png', 2732, 2732],
+          await sharp('public/staff-icon.svg', { density: 300 })
+            .resize(512, 512, { fit: 'fill' })
+            .png()
+            .toFile('release-assets/staff-play-icon-512.png')
+
+          await sharp('public/staff-feature-graphic.svg', { density: 300 })
+            .resize(1024, 500, { fit: 'fill' })
+            .flatten({ background: '#050816' })
+            .removeAlpha()
+            .png()
+            .toFile('release-assets/staff-feature-graphic-1024x500.png')
+
+          await sharp('public/staff-splash.svg', { density: 300 })
+            .resize(2732, 2732, { fit: 'fill' })
+            .flatten({ background: '#050816' })
+            .removeAlpha()
+            .png()
+            .toFile('release-assets/staff-splash-2732.png')
+
+          const expected = [
+            ['release-assets/staff-play-icon-512.png', 512, 512, true],
+            ['release-assets/staff-feature-graphic-1024x500.png', 1024, 500, false],
+            ['release-assets/staff-splash-2732.png', 2732, 2732, false],
           ]
 
-          for (const [input, output, width, height] of jobs) {
-            await sharp(input, { density: 300 })
-              .resize(width, height, { fit: 'fill' })
-              .png()
-              .toFile(output)
-            const metadata = await sharp(output).metadata()
-            console.log(`${output}: ${metadata.width}x${metadata.height}`)
+          for (const [file, width, height, alphaAllowed] of expected) {
+            const metadata = await sharp(file).metadata()
+            console.log(`${file}: ${metadata.width}x${metadata.height}, channels=${metadata.channels}, alpha=${Boolean(metadata.hasAlpha)}`)
+            if (metadata.width !== width || metadata.height !== height) throw new Error(`Dimensão inválida em ${file}`)
+            if (!alphaAllowed && metadata.hasAlpha) throw new Error(`Canal alfa não permitido em ${file}`)
           }
           NODE
 
