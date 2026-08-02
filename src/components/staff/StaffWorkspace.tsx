@@ -54,6 +54,7 @@ import {
   synchronizeTaskNotifications,
   usesNativeNotifications,
 } from '@/lib/staffNotifications'
+import { getVoiceResponseMode, setVoiceResponseMode, type VoiceResponseMode } from '@/lib/staffVoice'
 import { cn, type StaffScreen } from '@/lib/staffUi'
 import { StaffLogo } from '@/components/staff/Brand'
 import { AddTaskModal, TasksView, TodayView } from '@/components/staff/TaskViews'
@@ -62,6 +63,7 @@ import { LifeView, SettingsView } from '@/components/staff/LifeSettings'
 import { AgendaView } from '@/components/staff/AgendaView'
 import { AutomationsView } from '@/components/staff/AutomationsView'
 import { MoreView } from '@/components/staff/MoreView'
+import { VoiceButton } from '@/components/staff/VoiceButton'
 
 export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [screen, setScreen] = useState<StaffScreen>('today')
@@ -74,7 +76,9 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAddTask, setShowAddTask] = useState(false)
   const [pendingChatPrompt, setPendingChatPrompt] = useState('')
+  const [pendingVoiceSubmission, setPendingVoiceSubmission] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [voiceResponseMode, setVoiceModeState] = useState<VoiceResponseMode>(() => getVoiceResponseMode())
   const nexaConnected = Boolean(localStorage.getItem('nexaToken'))
 
   useEffect(() => {
@@ -228,9 +232,22 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
     }
   }
 
+  function changeVoiceResponseMode(mode: VoiceResponseMode) {
+    setVoiceResponseMode(mode)
+    setVoiceModeState(mode)
+  }
+
   function openLifeChat(prompt: string) {
+    setPendingVoiceSubmission(false)
     setPendingChatPrompt(prompt)
     setScreen('chat')
+  }
+
+  function openVoiceChat(prompt: string) {
+    setPendingVoiceSubmission(true)
+    setPendingChatPrompt(prompt)
+    setScreen('chat')
+    setMenuOpen(false)
   }
 
   function navigate(nextScreen: StaffScreen) {
@@ -301,8 +318,8 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
           ))}
         </nav>
         <div className="mt-5 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
-          <p className="text-xs font-semibold text-purple-200">Staff independente</p>
-          <p className="text-[11px] text-slate-500 mt-1">Nexa é uma integração opcional.</p>
+          <p className="text-xs font-semibold text-purple-200">Agora com voz</p>
+          <p className="text-[11px] text-slate-500 mt-1">Use o microfone para organizar o dia sem digitar.</p>
         </div>
       </aside>
 
@@ -324,8 +341,13 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
               onTaskCreated={handleCreateTask}
               onEventCreated={handleCreateEvent}
               onAutomationCreated={handleCreateAutomation}
+              onNavigate={navigate}
               initialPrompt={pendingChatPrompt}
-              onPromptConsumed={() => setPendingChatPrompt('')}
+              autoSubmitInitialPrompt={pendingVoiceSubmission}
+              onPromptConsumed={() => {
+                setPendingChatPrompt('')
+                setPendingVoiceSubmission(false)
+              }}
             />
           )}
           {screen === 'life' && <LifeView onOpenChat={openLifeChat} />}
@@ -340,10 +362,21 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
               onMarkRead={handleMarkNotificationRead}
             />
           )}
-          {screen === 'settings' && <SettingsView notificationsEnabled={notificationsEnabled} onNotifications={toggleNotifications} onLogout={onLogout} nexaConnected={nexaConnected} />}
+          {screen === 'settings' && (
+            <SettingsView
+              notificationsEnabled={notificationsEnabled}
+              onNotifications={toggleNotifications}
+              onLogout={onLogout}
+              nexaConnected={nexaConnected}
+              voiceResponseMode={voiceResponseMode}
+              onVoiceResponseMode={changeVoiceResponseMode}
+            />
+          )}
           {screen === 'more' && <MoreView onNavigate={navigate} />}
         </div>
       </main>
+
+      {screen !== 'chat' && <VoiceButton floating onTranscript={openVoiceChat} />}
 
       <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-[#070b1a]/95 backdrop-blur-xl border-t border-slate-800 safe-area-bottom">
         <div className="grid grid-cols-5 px-2 py-2">
