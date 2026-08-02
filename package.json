@@ -1,6 +1,6 @@
 {
   "name": "smart-bot-staff",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,18 +17,22 @@
     "@capacitor/android": "8.4.1",
     "@capacitor/core": "8.4.1",
     "@capacitor/local-notifications": "8.2.0",
+    "@capgo/capacitor-speech-recognition": "8.1.10",
+    "@capgo/capacitor-speech-synthesis": "8.0.20",
     "@supabase/supabase-js": "^2.106.1",
     "lucide-react": "^0.364.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "3.0.5",
     "@capacitor/cli": "8.4.1",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
+    "sharp": "0.32.6",
     "tailwindcss": "^3.4.16",
     "typescript": "5.7.2",
     "vite": "^6.0.1"
