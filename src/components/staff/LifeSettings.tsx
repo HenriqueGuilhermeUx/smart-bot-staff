@@ -10,14 +10,17 @@ import {
   Home,
   Link,
   LogOut,
+  Mic2,
   PartyPopper,
   Shield,
   Target,
   TrendingUp,
   User,
+  Volume2,
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/staffUi'
+import type { VoiceResponseMode } from '@/lib/staffVoice'
 import { LegalFooter } from '@/components/staff/LegalFooter'
 
 const LIFE_AREAS = [
@@ -57,11 +60,20 @@ export function LifeView({ onOpenChat }: { onOpenChat: (prompt: string) => void 
   )
 }
 
-export function SettingsView({ notificationsEnabled, onNotifications, onLogout, nexaConnected }: {
+export function SettingsView({
+  notificationsEnabled,
+  onNotifications,
+  onLogout,
+  nexaConnected,
+  voiceResponseMode,
+  onVoiceResponseMode,
+}: {
   notificationsEnabled: boolean
   onNotifications: () => void
   onLogout: () => void
   nexaConnected: boolean
+  voiceResponseMode: VoiceResponseMode
+  onVoiceResponseMode: (mode: VoiceResponseMode) => void
 }) {
   return (
     <div className="max-w-3xl mx-auto">
@@ -72,11 +84,42 @@ export function SettingsView({ notificationsEnabled, onNotifications, onLogout, 
             <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
               {notificationsEnabled ? <Bell className="w-5 h-5 text-purple-300" /> : <BellOff className="w-5 h-5 text-slate-500" />}
             </div>
-            <div><p className="font-semibold text-white">Notificações</p><p className="text-sm text-slate-500">Avisos de lembretes enquanto o app estiver ativo</p></div>
+            <div><p className="font-semibold text-white">Notificações</p><p className="text-sm text-slate-500">Avisos de tarefas, compromissos e automações</p></div>
           </div>
           <button onClick={onNotifications} className={cn('px-4 py-2 rounded-xl text-sm border', notificationsEnabled ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-slate-900 text-slate-400 border-slate-800')}>
             {notificationsEnabled ? 'Ativadas' : 'Ativar'}
           </button>
+        </div>
+
+        <div className="glass-card p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0"><Mic2 className="w-5 h-5 text-purple-300" /></div>
+            <div className="flex-1">
+              <p className="font-semibold text-white">Controle por voz</p>
+              <p className="text-sm text-slate-500 mt-1">Toque no microfone para criar tarefas, agendar compromissos, consultar o dia e conversar com o Staff.</p>
+              <div className="mt-4 p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-3 text-xs text-slate-400">
+                <Shield className="w-4 h-4 text-emerald-300 shrink-0" />
+                O áudio bruto não é salvo pelo Staff. A transcrição pode usar o serviço de voz configurado no aparelho.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-cyan-500/10 flex items-center justify-center"><Volume2 className="w-5 h-5 text-cyan-300" /></div>
+            <div><p className="font-semibold text-white">Respostas faladas</p><p className="text-sm text-slate-500">Escolha quando o Staff deve responder em voz alta.</p></div>
+          </div>
+          <select
+            value={voiceResponseMode}
+            onChange={(event) => onVoiceResponseMode(event.target.value as VoiceResponseMode)}
+            className="px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white outline-none focus:border-purple-500"
+            aria-label="Quando responder por voz"
+          >
+            <option value="after-voice">Quando eu usar o microfone</option>
+            <option value="always">Sempre</option>
+            <option value="never">Nunca</option>
+          </select>
         </div>
 
         <div className="glass-card p-5 flex items-center justify-between gap-4">
@@ -91,7 +134,8 @@ export function SettingsView({ notificationsEnabled, onNotifications, onLogout, 
 
         <div className="glass-card p-5 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center"><Shield className="w-5 h-5 text-emerald-300" /></div>
-          <div><p className="font-semibold text-white">Privacidade e controle</p><p className="text-sm text-slate-500">Ações externas só serão realizadas mediante sua autorização.</p></div>
+          <div className="flex-1"><p className="font-semibold text-white">Privacidade e controle</p><p className="text-sm text-slate-500">Ações externas só são realizadas mediante sua autorização.</p></div>
+          <a href="/privacy.html" target="_blank" rel="noreferrer" className="text-xs text-purple-300 hover:text-purple-200">Ver política</a>
         </div>
 
         <button onClick={onLogout} className="w-full p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20 text-rose-300 flex items-center justify-center gap-2 hover:bg-rose-500/10">
