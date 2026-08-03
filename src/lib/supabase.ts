@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dgtpfvjnuroxgamghicd.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 // Create client only if we have the required values
 let supabase: SupabaseClient
@@ -10,7 +10,7 @@ if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined' && supabaseKey !==
   supabase = createClient(supabaseUrl, supabaseKey)
 } else {
   // Create a placeholder that won't crash the app
-  console.warn('Supabase credentials not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.')
+  console.warn('Supabase credentials not configured. Set VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY before building the app.')
   // Use a placeholder that will fail gracefully
   supabase = createClient('https://placeholder.supabase.co', 'placeholder-key')
 }
@@ -42,7 +42,7 @@ export interface StaffHistory {
 // Auth functions
 export async function signUp(email: string, password: string, name: string, whatsapp: string) {
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase não está configurado. Configure as variáveis de ambiente.')
+    throw new Error('Supabase não está configurado. Configure a chave pública antes de gerar o aplicativo.')
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -78,7 +78,7 @@ export async function signUp(email: string, password: string, name: string, what
 
 export async function signIn(email: string, password: string) {
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase não está configurado. Configure as variáveis de ambiente.')
+    throw new Error('Supabase não está configurado. Configure a chave pública antes de gerar o aplicativo.')
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
