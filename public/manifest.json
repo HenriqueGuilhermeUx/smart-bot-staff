@@ -1,7 +1,7 @@
 {
-  "name": "Staff — Assistente Pessoal com IA",
+  "name": "Staff: Assistente com IA",
   "short_name": "Staff",
-  "description": "Organize agenda, tarefas, lembretes e automações por texto ou voz.",
+  "description": "Organize agenda, tarefas e rotinas com voz e inteligência artificial.",
   "theme_color": "#050816",
   "background_color": "#050816",
   "display": "standalone",
