@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   appName: 'Staff',
   webDir: 'dist',
   backgroundColor: '#050816',
-  loggingBehavior: 'debug',
+  loggingBehavior: 'production',
   android: {
     backgroundColor: '#050816',
     allowMixedContent: false,
