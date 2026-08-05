@@ -4,75 +4,95 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Política de Privacidade — Staff</title>
-  <meta name="description" content="Política de Privacidade do Staff — Assistente Pessoal com IA." />
+  <meta name="description" content="Política de Privacidade do Staff: dados, voz, agenda, tarefas, automações e exclusão de conta." />
   <style>
-    :root { color-scheme: dark; font-family: Inter, Arial, sans-serif; background:#050816; color:#e2e8f0; }
+    :root { color-scheme:dark; font-family:Inter,Arial,sans-serif; background:#050816; color:#e2e8f0; }
     * { box-sizing:border-box; }
-    body { margin:0; background:radial-gradient(circle at 20% 0%, #241052 0, #080c1c 36%, #050816 70%); line-height:1.65; }
-    main { width:min(880px, calc(100% - 32px)); margin:0 auto; padding:48px 0 72px; }
-    header { display:flex; align-items:center; gap:16px; margin-bottom:36px; }
+    body { margin:0; background:radial-gradient(circle at 20% 0%,#241052 0,#080c1c 36%,#050816 70%); line-height:1.68; }
+    main { width:min(900px,calc(100% - 32px)); margin:0 auto; padding:48px 0 72px; }
+    header { display:flex; align-items:center; gap:16px; margin-bottom:34px; }
     .mark { width:58px; height:58px; border-radius:18px; display:grid; place-items:center; background:linear-gradient(135deg,#8b5cf6,#4c1d95); font-size:30px; }
     h1 { margin:0; font-size:clamp(30px,6vw,48px); line-height:1.05; }
     h2 { color:#fff; margin-top:34px; }
-    p, li { color:#aeb9cc; }
-    .card { background:rgba(15,23,42,.72); border:1px solid rgba(139,92,246,.22); border-radius:24px; padding:24px; }
+    h3 { color:#ddd6fe; margin-top:24px; }
+    p,li { color:#aeb9cc; }
+    strong { color:#e2e8f0; }
+    .card { background:rgba(15,23,42,.74); border:1px solid rgba(139,92,246,.22); border-radius:24px; padding:clamp(20px,4vw,32px); }
     .notice { background:rgba(124,58,237,.12); border:1px solid rgba(167,139,250,.25); border-radius:18px; padding:18px; color:#ddd6fe; }
+    .links { display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; }
+    .links a { padding:10px 14px; border-radius:12px; border:1px solid rgba(139,92,246,.28); background:rgba(124,58,237,.09); text-decoration:none; }
     a { color:#c4b5fd; }
-    code { color:#ddd6fe; }
     footer { margin-top:44px; padding-top:24px; border-top:1px solid rgba(255,255,255,.08); color:#64748b; font-size:14px; }
   </style>
 </head>
 <body>
 <main>
   <header>
-    <div class="mark">✦</div>
+    <div class="mark" aria-hidden="true">✦</div>
     <div><div style="color:#c4b5fd;font-weight:700">Staff</div><h1>Política de Privacidade</h1></div>
   </header>
 
-  <div class="card">
-    <p><strong>Última atualização:</strong> 1º de agosto de 2026.</p>
-    <p>Esta Política explica como a <strong>Alternative Ventures Ltda</strong>, CNPJ 61.920.356/0001-38, trata dados no aplicativo Staff — Assistente Pessoal com IA.</p>
+  <article class="card">
+    <p><strong>Última atualização:</strong> 4 de agosto de 2026.</p>
+    <p>Esta Política explica como a <strong>Alternative Ventures Ltda</strong>, CNPJ 61.920.356/0001-38, trata dados pessoais no aplicativo <strong>Staff: Assistente com IA</strong>, no site e nos serviços relacionados.</p>
 
-    <h2>1. Dados tratados</h2>
+    <h2>1. Quem controla os dados</h2>
+    <p>A controladora é a Alternative Ventures Ltda. Dúvidas e solicitações de privacidade podem ser enviadas para <a href="mailto:henriquecampos66@gmail.com?subject=Privacidade%20Staff">henriquecampos66@gmail.com</a>.</p>
+
+    <h2>2. Dados tratados</h2>
     <ul>
-      <li>dados de conta, como nome, e-mail e telefone informados no cadastro;</li>
-      <li>tarefas, compromissos, mensagens, automações, preferências e lembretes criados pelo usuário;</li>
-      <li>dados técnicos essenciais para autenticação, segurança, funcionamento e diagnóstico de erros;</li>
-      <li>transcrições de comandos de voz, quando o usuário escolhe falar com o Staff.</li>
+      <li><strong>Conta e perfil:</strong> nome, e-mail, telefone ou WhatsApp informado, identificador de usuário e dados de autenticação administrados pelo Supabase;</li>
+      <li><strong>Conteúdo criado pelo usuário:</strong> tarefas, lembretes, compromissos, recorrências, mensagens, memórias, automações, preferências e notificações;</li>
+      <li><strong>Voz:</strong> transcrição dos comandos quando o usuário escolhe usar o microfone;</li>
+      <li><strong>Dados técnicos:</strong> informações estritamente necessárias para sessão, segurança, funcionamento, prevenção de abuso e diagnóstico de falhas.</li>
     </ul>
 
-    <h2>2. Microfone e reconhecimento de voz</h2>
-    <div class="notice">
-      O microfone é ativado somente após ação explícita do usuário e enquanto a interface indicar que está ouvindo. O Staff não armazena o áudio bruto. A fala é convertida em texto para atender à solicitação.
-    </div>
-    <p>Dependendo do aparelho, do sistema operacional e das configurações de voz, o reconhecimento pode acontecer localmente ou por serviço de reconhecimento configurado no dispositivo. O usuário pode continuar usando todas as áreas disponíveis por texto e pode negar a permissão de microfone.</p>
+    <h2>3. Microfone, reconhecimento e síntese de voz</h2>
+    <div class="notice"><strong>O Staff não mantém o microfone aberto continuamente e não armazena o áudio bruto.</strong> O microfone é iniciado somente após uma ação do usuário e enquanto a interface indicar que está ouvindo.</div>
+    <p>A fala é convertida em texto para executar a solicitação. Dependendo do aparelho, do Android e das configurações do usuário, o reconhecimento e a síntese podem ser processados localmente ou pelo serviço de voz configurado no dispositivo. O usuário pode negar ou revogar a permissão e continuar usando as funções disponíveis por texto.</p>
 
-    <h2>3. Finalidades</h2>
-    <p>Os dados são usados para autenticar o usuário, organizar agenda e tarefas, executar automações solicitadas, gerar respostas, enviar lembretes, proteger a conta, manter o serviço e cumprir obrigações legais.</p>
+    <h2>4. Finalidades e bases de tratamento</h2>
+    <p>Tratamos dados para criar e autenticar a conta, prestar as funcionalidades solicitadas, armazenar agenda e tarefas, executar automações, gerar respostas, programar lembretes, proteger a conta, atender solicitações de suporte e cumprir obrigações legais. Conforme o caso, o tratamento se baseia na execução do serviço solicitado, consentimento, legítimo interesse relacionado à segurança e funcionamento, e cumprimento de obrigação legal.</p>
 
-    <h2>4. Serviços utilizados</h2>
-    <p>O Staff utiliza infraestrutura de nuvem e banco de dados para autenticação e armazenamento, incluindo Supabase e Netlify. Serviços nativos do Android podem participar do reconhecimento e da síntese de voz conforme a configuração do aparelho.</p>
+    <h2>5. Fornecedores e compartilhamento</h2>
+    <p>Não vendemos dados pessoais. Para operar o Staff, dados podem ser processados por fornecedores necessários, incluindo:</p>
+    <ul>
+      <li><strong>Supabase:</strong> autenticação, banco de dados e infraestrutura relacionada;</li>
+      <li><strong>Netlify:</strong> hospedagem do site, funções de backend e registro de formulários;</li>
+      <li><strong>serviços do Android:</strong> reconhecimento e síntese de voz conforme o aparelho e as escolhas do usuário;</li>
+      <li><strong>provedores de inteligência artificial contratados:</strong> quando necessários para produzir a resposta solicitada, limitados ao conteúdo relevante da interação.</li>
+    </ul>
+    <p>Também poderemos compartilhar dados quando houver obrigação legal, ordem de autoridade competente, proteção de direitos ou investigação de fraude e abuso.</p>
 
-    <h2>5. Compartilhamento</h2>
-    <p>Não vendemos dados pessoais. Dados podem ser processados por fornecedores necessários à operação, sob finalidade compatível com o serviço, ou compartilhados quando exigido por lei.</p>
+    <h2>6. Transferência e armazenamento</h2>
+    <p>Os fornecedores podem manter infraestrutura fora do Brasil. Nesses casos, buscamos utilizar serviços com medidas contratuais e técnicas compatíveis com a proteção de dados. Os dados são mantidos enquanto a conta estiver ativa e pelo tempo necessário para cumprir a finalidade informada. Após a exclusão, dados associados são removidos, salvo retenção estritamente necessária por obrigação legal, prevenção de fraude ou defesa de direitos.</p>
 
-    <h2>6. Armazenamento e segurança</h2>
-    <p>Adotamos controles de acesso, autenticação, regras por usuário e medidas técnicas razoáveis. Nenhum sistema é totalmente isento de risco, mas buscamos reduzir acesso indevido, perda e uso incompatível.</p>
+    <h2>7. Segurança</h2>
+    <p>Usamos autenticação, controles de acesso por usuário, conexões protegidas e regras de banco de dados. Nenhum sistema é totalmente isento de risco, mas adotamos medidas razoáveis para reduzir acesso indevido, perda, alteração e uso incompatível.</p>
 
-    <h2>7. Direitos do titular</h2>
-    <p>Nos termos da LGPD, o usuário pode solicitar confirmação, acesso, correção, portabilidade quando aplicável, anonimização, bloqueio, eliminação, informação sobre compartilhamento e revisão de consentimento.</p>
+    <h2>8. Direitos do titular</h2>
+    <p>Nos termos da LGPD, o usuário pode solicitar confirmação de tratamento, acesso, correção, portabilidade quando aplicável, informação sobre compartilhamento, anonimização, bloqueio, eliminação, oposição e revisão de consentimento. A identidade poderá ser confirmada antes do atendimento.</p>
 
-    <h2>8. Exclusão da conta</h2>
-    <p>A exclusão pode ser solicitada dentro do aplicativo em <strong>Configurações → Excluir conta</strong> ou pela página <a href="/account-deletion.html">Exclusão de conta</a>. Após confirmação, a conta de autenticação e os dados pessoais vinculados são eliminados, salvo retenção obrigatória por lei ou necessária para prevenção de fraude e defesa de direitos.</p>
+    <h2>9. Exclusão da conta e dos dados</h2>
+    <p>O usuário autenticado pode excluir a conta diretamente em <strong>Mais → Configurações → Excluir conta e dados</strong>. Quem não conseguir acessar o aplicativo pode registrar uma solicitação na página pública <a href="/account-deletion.html">Exclusão de conta do Staff</a>. A exclusão não significa apenas desativação: a conta de autenticação e os dados associados são removidos, observadas as exceções legais descritas nesta Política.</p>
 
-    <h2>9. Crianças e adolescentes</h2>
-    <p>O Staff não é direcionado a crianças sem supervisão responsável. Caso identifiquemos tratamento indevido de dados de menor, adotaremos as medidas cabíveis.</p>
+    <h2>10. Crianças e adolescentes</h2>
+    <p>O Staff não é direcionado a crianças sem a participação do responsável legal. Caso identifiquemos tratamento indevido de dados de menor, adotaremos medidas para restringir o uso e eliminar os dados quando cabível.</p>
 
-    <h2>10. Contato</h2>
-    <p>Responsável: Alternative Ventures Ltda<br />E-mail: <a href="mailto:henriquecampos66@gmail.com?subject=Privacidade%20Staff">henriquecampos66@gmail.com</a><br />WhatsApp: <a href="https://wa.me/5511947984328">+55 11 94798-4328</a></p>
-  </div>
+    <h2>11. Alterações desta Política</h2>
+    <p>Esta Política pode ser atualizada para refletir mudanças no produto, fornecedores ou legislação. A versão vigente e a data de atualização permanecerão publicadas nesta página.</p>
 
-  <footer>Staff — Assistente Pessoal com IA · Alternative Ventures Ltda · CNPJ 61.920.356/0001-38</footer>
+    <h2>12. Contato</h2>
+    <p><strong>Alternative Ventures Ltda</strong><br />CNPJ 61.920.356/0001-38<br />E-mail: <a href="mailto:henriquecampos66@gmail.com?subject=Privacidade%20Staff">henriquecampos66@gmail.com</a><br />Site: <a href="https://alternativeventures.com.br">alternativeventures.com.br</a></p>
+
+    <nav class="links" aria-label="Documentos legais">
+      <a href="/account-deletion.html">Excluir conta</a>
+      <a href="/terms.html">Termos de Uso</a>
+      <a href="/">Voltar ao Staff</a>
+    </nav>
+  </article>
+
+  <footer>Staff: Assistente com IA · Alternative Ventures Ltda · CNPJ 61.920.356/0001-38</footer>
 </main>
 </body>
 </html>
