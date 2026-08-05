@@ -1,4 +1,4 @@
-import { Mail, MessageCircle } from 'lucide-react'
+import { FileText, Mail, MessageCircle, ShieldCheck, UserX } from 'lucide-react'
 import { COMPANY } from '@/lib/company'
 import { cn } from '@/lib/staffUi'
 
@@ -26,7 +26,37 @@ export function LegalFooter({ compact = false }: { compact?: boolean }) {
           <span className="block">CNPJ {COMPANY.cnpj}</span>
         </div>
 
-        <div className="flex items-center gap-2" aria-label="Canais de contato">
+        <div className="flex flex-wrap items-center gap-2" aria-label="Privacidade, conta e contato">
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir Política de Privacidade"
+            title="Privacidade"
+            className="w-10 h-10 rounded-xl border border-white/10 bg-white/5 hover:bg-purple-500/10 hover:border-purple-500/30 hover:text-purple-300 flex items-center justify-center transition-colors"
+          >
+            <ShieldCheck className="w-4 h-4" />
+          </a>
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir Termos de Uso"
+            title="Termos de Uso"
+            className="w-10 h-10 rounded-xl border border-white/10 bg-white/5 hover:bg-purple-500/10 hover:border-purple-500/30 hover:text-purple-300 flex items-center justify-center transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+          </a>
+          <a
+            href="/account-deletion.html"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir página de exclusão de conta"
+            title="Excluir conta"
+            className="w-10 h-10 rounded-xl border border-white/10 bg-white/5 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-300 flex items-center justify-center transition-colors"
+          >
+            <UserX className="w-4 h-4" />
+          </a>
           <a
             href={COMPANY.emailUrl}
             aria-label="Enviar e-mail"
