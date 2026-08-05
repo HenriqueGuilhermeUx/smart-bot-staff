@@ -4,42 +4,92 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Exclusão de conta — Staff</title>
-  <meta name="description" content="Como excluir uma conta e os dados associados ao Staff." />
+  <meta name="description" content="Solicite a exclusão da conta e dos dados associados ao Staff." />
   <style>
     :root { color-scheme:dark; font-family:Inter,Arial,sans-serif; background:#050816; color:#e2e8f0; }
     * { box-sizing:border-box; }
     body { margin:0; background:radial-gradient(circle at 20% 0%,#241052 0,#080c1c 36%,#050816 70%); line-height:1.65; }
-    main { width:min(760px,calc(100% - 32px)); margin:0 auto; padding:52px 0 72px; }
+    main { width:min(820px,calc(100% - 32px)); margin:0 auto; padding:52px 0 72px; }
     .mark { width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,#8b5cf6,#4c1d95);font-size:30px; }
     header { display:flex;align-items:center;gap:16px;margin-bottom:34px; }
     h1 { margin:0;font-size:clamp(30px,6vw,46px);line-height:1.05; }
     h2 { color:#fff;margin-top:30px; }
-    p,li { color:#aeb9cc; }
-    .card { background:rgba(15,23,42,.74);border:1px solid rgba(139,92,246,.22);border-radius:24px;padding:26px; }
-    .step { display:flex;gap:14px;margin:16px 0; }
+    p,li,label { color:#aeb9cc; }
+    strong { color:#e2e8f0; }
+    .card { background:rgba(15,23,42,.76);border:1px solid rgba(139,92,246,.22);border-radius:24px;padding:clamp(20px,4vw,30px); }
+    .step { display:flex;gap:14px;margin:14px 0; }
     .number { width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:#6d28d9;color:white;font-weight:800;flex:none; }
     a { color:#c4b5fd; }
     .warning { padding:16px;border-radius:16px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);color:#fecdd3; }
+    form { margin-top:24px; padding:22px; border-radius:20px; background:rgba(2,6,23,.62); border:1px solid rgba(139,92,246,.24); }
+    label { display:block; margin-top:16px; font-size:14px; }
+    input,textarea { width:100%; margin-top:7px; padding:13px 14px; border-radius:12px; border:1px solid #334155; background:#020617; color:white; font:inherit; outline:none; }
+    input:focus,textarea:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.12); }
+    textarea { min-height:108px; resize:vertical; }
+    .check { display:flex; gap:10px; align-items:flex-start; }
+    .check input { width:auto; margin-top:5px; }
+    button { width:100%; margin-top:20px; border:0; border-radius:13px; padding:14px 18px; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:white; font:inherit; font-weight:800; cursor:pointer; }
+    button:hover { filter:brightness(1.08); }
+    .small { font-size:13px; color:#64748b; }
+    .links { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
   </style>
 </head>
 <body>
 <main>
-  <header><div class="mark">✦</div><div><div style="color:#c4b5fd;font-weight:700">Staff</div><h1>Exclusão de conta</h1></div></header>
-  <div class="card">
-    <p>O usuário pode excluir sua conta e os dados associados diretamente pelo aplicativo.</p>
-    <h2>Pelo aplicativo</h2>
-    <div class="step"><div class="number">1</div><p>Entre na conta do Staff.</p></div>
+  <header><div class="mark" aria-hidden="true">✦</div><div><div style="color:#c4b5fd;font-weight:700">Staff</div><h1>Exclusão de conta</h1></div></header>
+  <article class="card">
+    <p>Esta é a página pública oficial para excluir uma conta do <strong>Staff: Assistente com IA</strong>, oferecido pela <strong>Alternative Ventures Ltda</strong>.</p>
+
+    <h2>Exclusão imediata pelo aplicativo</h2>
+    <div class="step"><div class="number">1</div><p>Entre na sua conta do Staff.</p></div>
     <div class="step"><div class="number">2</div><p>Abra <strong>Mais → Configurações</strong>.</p></div>
     <div class="step"><div class="number">3</div><p>Selecione <strong>Excluir conta e dados</strong>.</p></div>
-    <div class="step"><div class="number">4</div><p>Leia o aviso, confirme a exclusão e aguarde a conclusão.</p></div>
-    <div class="warning">A exclusão é permanente. Tarefas, compromissos, mensagens, automações e preferências vinculadas deixam de ficar disponíveis.</div>
-    <h2>Solicitação externa</h2>
-    <p>Caso não consiga acessar o aplicativo, envie uma solicitação pelo e-mail <a href="mailto:henriquecampos66@gmail.com?subject=Exclus%C3%A3o%20de%20conta%20Staff">henriquecampos66@gmail.com</a> usando o mesmo endereço da conta. Poderemos pedir confirmação de identidade antes da exclusão.</p>
-    <h2>Dados excluídos</h2>
-    <ul><li>conta de autenticação e perfil;</li><li>tarefas e lembretes;</li><li>eventos e recorrências;</li><li>mensagens e memórias do assistente;</li><li>automações, execuções e notificações;</li><li>preferências do usuário.</li></ul>
-    <p>Informações poderão ser mantidas somente quando houver obrigação legal, prevenção de fraude ou necessidade de defesa de direitos.</p>
-    <p><a href="/privacy.html">Ler a Política de Privacidade</a></p>
-  </div>
+    <div class="step"><div class="number">4</div><p>Digite <strong>EXCLUIR</strong> e confirme. O aplicativo chama o serviço autenticado de exclusão e remove a conta e os dados associados.</p></div>
+
+    <h2>Solicitação pela web</h2>
+    <p>Use este formulário caso tenha desinstalado o aplicativo, não consiga entrar ou prefira solicitar pela web. O pedido será registrado pelo Netlify e encaminhado para análise da Alternative Ventures. Poderemos confirmar sua identidade usando o e-mail cadastrado antes de concluir a exclusão.</p>
+
+    <form name="staff-account-deletion" method="POST" action="/account-deletion-confirmation.html" data-netlify="true" netlify-honeypot="bot-field">
+      <input type="hidden" name="form-name" value="staff-account-deletion" />
+      <p hidden><label>Não preencha este campo: <input name="bot-field" /></label></p>
+
+      <label for="name">Nome</label>
+      <input id="name" name="name" type="text" autocomplete="name" maxlength="120" />
+
+      <label for="email">E-mail usado na conta do Staff <strong>*</strong></label>
+      <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" />
+
+      <label for="reason">Observação opcional</label>
+      <textarea id="reason" name="reason" maxlength="1000" placeholder="Conte qualquer dificuldade para acessar a conta ou informação útil para localizar o cadastro."></textarea>
+
+      <label class="check" for="ownership">
+        <input id="ownership" name="ownership-confirmed" type="checkbox" required value="sim" />
+        <span>Confirmo que sou titular da conta ou representante autorizado e solicito a exclusão permanente da conta e dos dados associados.</span>
+      </label>
+
+      <button type="submit">Registrar solicitação de exclusão</button>
+      <p class="small">A solicitação é registrada imediatamente. A conclusão pode exigir confirmação de identidade para impedir a exclusão indevida de contas.</p>
+    </form>
+
+    <h2>Dados que serão excluídos</h2>
+    <ul>
+      <li>conta de autenticação e perfil;</li>
+      <li>tarefas, lembretes e preferências;</li>
+      <li>eventos, recorrências e avisos da agenda;</li>
+      <li>mensagens e memórias do assistente;</li>
+      <li>automações, execuções e notificações vinculadas.</li>
+    </ul>
+    <div class="warning">A exclusão é permanente. Dados poderão ser mantidos somente quando houver obrigação legal, prevenção de fraude ou necessidade de defesa de direitos.</div>
+
+    <h2>Canal alternativo</h2>
+    <p>Também é possível solicitar pelo e-mail <a href="mailto:henriquecampos66@gmail.com?subject=Exclus%C3%A3o%20de%20conta%20Staff">henriquecampos66@gmail.com</a>, usando preferencialmente o mesmo endereço da conta.</p>
+
+    <nav class="links" aria-label="Links legais">
+      <a href="/privacy.html">Política de Privacidade</a>
+      <a href="/terms.html">Termos de Uso</a>
+      <a href="/">Voltar ao Staff</a>
+    </nav>
+  </article>
 </main>
 </body>
 </html>
