@@ -1,4 +1,5 @@
-name: Build Staff Android Release
+name: Staff Android Release
+run-name: Staff Android 2.2.2 — ${{ github.event_name }}
 
 on:
   workflow_dispatch:
