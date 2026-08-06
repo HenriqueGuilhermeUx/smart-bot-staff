@@ -9,7 +9,6 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -19,7 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -33,157 +31,27 @@ jobs:
       - name: Type-check application
         run: npm run typecheck
 
-      - name: Validate and build web application
+      - name: Build web application
         env:
           VITE_SUPABASE_URL: https://dgtpfvjnuroxgamghicd.supabase.co
-          SECRET_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          SECRET_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VARIABLE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VARIABLE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Create Android project
         run: |
-          export VITE_SUPABASE_PUBLISHABLE_KEY="${SECRET_PUBLISHABLE_KEY:-$VARIABLE_PUBLISHABLE_KEY}"
-          export VITE_SUPABASE_ANON_KEY="${SECRET_ANON_KEY:-$VARIABLE_ANON_KEY}"
-
-          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY em Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-
-          npm run build
-
-      - name: Create and sync Android project
-        run: |
-          rm -rf android assets
+          rm -rf android
           npx cap add android
           npx cap sync android
 
-      - name: Generate Android icon and splash
-        run: |
-          mkdir -p assets
-          cp public/staff-icon.svg assets/logo.svg
-          npx @capacitor/assets generate --android --assetPath assets \
-            --iconBackgroundColor '#050816' \
-            --iconBackgroundColorDark '#050816' \
-            --splashBackgroundColor '#050816' \
-            --splashBackgroundColorDark '#050816'
-
-      - name: Configure Android manifest and version
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          text = manifest.read_text(encoding='utf-8')
-          permissions = [
-              '<uses-permission android:name="android.permission.INTERNET" />',
-              '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />',
-              '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />',
-              '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
-          ]
-          for permission in permissions:
-              if permission not in text:
-                  text = re.sub(r'(<manifest[^>]*>)', r'\1\n    ' + permission, text, count=1)
-
-          if 'android.speech.RecognitionService' not in text:
-              queries = '''
-              <queries>
-                  <intent>
-                      <action android:name="android.speech.RecognitionService" />
-                  </intent>
-              </queries>
-              '''
-              text = text.replace('<application', queries + '\n    <application', 1)
-
-          manifest.write_text(text, encoding='utf-8')
-
-          gradle = Path('android/app/build.gradle')
-          value = gradle.read_text(encoding='utf-8')
-          value = re.sub(r'versionCode\s+\d+', 'versionCode 24', value, count=1)
-          value = re.sub(r'versionName\s+"[^"]+"', 'versionName "2.2.2"', value, count=1)
-          gradle.write_text(value, encoding='utf-8')
-          PY
-
-      - name: Prepare Google Play signing
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
-            echo "::error::Cadastre os quatro secrets de assinatura Android antes de gerar o AAB."
-            exit 1
-          fi
-
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/staff-upload-key.jks
-
-          cat > android/keystore.properties <<EOF
-          storeFile=staff-upload-key.jks
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          EOF
-
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          gradle = Path('android/app/build.gradle')
-          text = gradle.read_text(encoding='utf-8')
-
-          header = '''def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file("keystore.properties")
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
-'''
-          if 'def keystoreProperties =' not in text:
-              text = header + text
-
-          signing = '''android {
-    signingConfigs {
-        release {
-            storeFile rootProject.file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-        }
-    }
-'''
-          if 'signingConfigs {' not in text:
-              text = text.replace('android {', signing, 1)
-
-          if 'signingConfig signingConfigs.release' not in text:
-              text = re.sub(
-                  r'(buildTypes\s*\{\s*release\s*\{)',
-                  r'\1\n            signingConfig signingConfigs.release',
-                  text,
-                  count=1,
-              )
-
-          gradle.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Build APK and AAB
+      - name: Build debug APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug assembleRelease bundleRelease --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: staff-android-debug-2.2.2
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload signed Google Play release
-        uses: actions/upload-artifact@v4
-        with:
-          name: staff-google-play-release-2.2.2
-          path: |
-            android/app/build/outputs/apk/release/app-release.apk
-            android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 30
