@@ -3,31 +3,9 @@ name: Build Staff Android Release
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'netlify/functions/**'
-      - 'supabase/migrations/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'capacitor.config.ts'
-      - '.github/workflows/build-android-debug.yml'
+    branches: [main]
   push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'netlify/functions/**'
-      - 'supabase/migrations/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'capacitor.config.ts'
-      - '.github/workflows/build-android-debug.yml'
+    branches: [main]
 
 permissions:
   contents: read
@@ -50,14 +28,8 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
-
-      - name: Show tool versions
-        run: |
-          node --version
-          npm --version
-          java -version
 
       - name: Install dependencies cleanly
         run: |
@@ -65,7 +37,6 @@ jobs:
           rm -f package-lock.json
           npm cache clean --force
           npm install --no-audit --no-fund
-          npm ls @capacitor/core @capacitor/android @capacitor/local-notifications @capgo/capacitor-speech-recognition @capgo/capacitor-speech-synthesis @capacitor/assets sharp @capacitor/cli typescript
 
       - name: Type-check application
         run: npm run typecheck
@@ -76,10 +47,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: |
           if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY em Settings > Secrets and variables > Actions."
+            echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY."
             exit 1
           fi
-          echo "Supabase public key configured for Android build."
 
       - name: Build web application
         env:
@@ -88,17 +58,14 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      - name: Create Android project
+      - name: Create and sync Android project
         run: |
-          rm -rf android
+          rm -rf android assets
           npx cap add android
-
-      - name: Sync Capacitor project
-        run: npx cap sync android
+          npx cap sync android
 
       - name: Generate official Android icon and splash
         run: |
-          rm -rf assets
           mkdir -p assets
           cp public/staff-icon.svg assets/logo.svg
           npx @capacitor/assets generate --android --assetPath assets \
@@ -116,6 +83,7 @@ jobs:
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text(encoding='utf-8')
           permissions = [
+              '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />',
               '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />',
               '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
           ]
@@ -132,54 +100,14 @@ jobs:
               </queries>
               '''
               text = text.replace('<application', queries + '\n    <application', 1)
-
           manifest.write_text(text, encoding='utf-8')
 
           gradle = Path('android/app/build.gradle')
-          gradle_text = gradle.read_text(encoding='utf-8')
-          gradle_text = re.sub(r'versionCode\s+\d+', 'versionCode 23', gradle_text, count=1)
-          gradle_text = re.sub(r'versionName\s+"[^"]+"', 'versionName "2.2.1"', gradle_text, count=1)
-          gradle.write_text(gradle_text, encoding='utf-8')
+          value = gradle.read_text(encoding='utf-8')
+          value = re.sub(r'versionCode\s+\d+', 'versionCode 24', value, count=1)
+          value = re.sub(r'versionName\s+"[^"]+"', 'versionName "2.2.2"', value, count=1)
+          gradle.write_text(value, encoding='utf-8')
           PY
-
-      - name: Generate Google Play image assets
-        run: |
-          mkdir -p release-assets
-          node --input-type=module <<'NODE'
-          import sharp from 'sharp'
-
-          await sharp('public/staff-icon.svg', { density: 300 })
-            .resize(512, 512, { fit: 'fill' })
-            .png()
-            .toFile('release-assets/staff-play-icon-512.png')
-
-          await sharp('public/staff-feature-graphic.svg', { density: 300 })
-            .resize(1024, 500, { fit: 'fill' })
-            .flatten({ background: '#050816' })
-            .removeAlpha()
-            .png()
-            .toFile('release-assets/staff-feature-graphic-1024x500.png')
-
-          await sharp('public/staff-splash.svg', { density: 300 })
-            .resize(2732, 2732, { fit: 'fill' })
-            .flatten({ background: '#050816' })
-            .removeAlpha()
-            .png()
-            .toFile('release-assets/staff-splash-2732.png')
-
-          const expected = [
-            ['release-assets/staff-play-icon-512.png', 512, 512, true],
-            ['release-assets/staff-feature-graphic-1024x500.png', 1024, 500, false],
-            ['release-assets/staff-splash-2732.png', 2732, 2732, false],
-          ]
-
-          for (const [file, width, height, alphaAllowed] of expected) {
-            const metadata = await sharp(file).metadata()
-            console.log(`${file}: ${metadata.width}x${metadata.height}, channels=${metadata.channels}, alpha=${Boolean(metadata.hasAlpha)}`)
-            if (metadata.width !== width || metadata.height !== height) throw new Error(`Dimensão inválida em ${file}`)
-            if (!alphaAllowed && metadata.hasAlpha) throw new Error(`Canal alfa não permitido em ${file}`)
-          }
-          NODE
 
       - name: Prepare release signing
         env:
@@ -188,33 +116,17 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/staff-upload-key.jks
-            STORE_FILE="staff-upload-key.jks"
-            STORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
-            KEY_ALIAS="$ANDROID_KEY_ALIAS"
-            KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
-            echo "PLAY_SIGNED=true" >> "$GITHUB_ENV"
-          else
-            keytool -genkeypair -v \
-              -keystore android/staff-ci-release.jks \
-              -storepass staff-ci-only-2026 \
-              -keypass staff-ci-only-2026 \
-              -alias staff-ci \
-              -keyalg RSA -keysize 2048 -validity 3650 \
-              -dname "CN=Staff CI, OU=Alternative Ventures, O=Alternative Ventures Ltda, L=Sao Paulo, ST=SP, C=BR"
-            STORE_FILE="staff-ci-release.jks"
-            STORE_PASSWORD="staff-ci-only-2026"
-            KEY_ALIAS="staff-ci"
-            KEY_PASSWORD="staff-ci-only-2026"
-            echo "PLAY_SIGNED=false" >> "$GITHUB_ENV"
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::Os quatro secrets da assinatura Google Play são obrigatórios."
+            exit 1
           fi
 
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/staff-upload-key.jks
           cat > android/keystore.properties <<EOF
-          storeFile=$STORE_FILE
-          storePassword=$STORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
+          storeFile=staff-upload-key.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
           EOF
 
           python - <<'PY'
@@ -223,42 +135,32 @@ jobs:
 
           gradle = Path('android/app/build.gradle')
           text = gradle.read_text(encoding='utf-8')
+          header = '''def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
-          signing_header = '''def keystoreProperties = new Properties()
-          def keystorePropertiesFile = rootProject.file("keystore.properties")
-          if (keystorePropertiesFile.exists()) {
-              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-          }
-
-          '''
+'''
           if 'def keystoreProperties =' not in text:
-              text = signing_header + text
+              text = header + text
 
-          signing_config = '''android {
-              signingConfigs {
-                  release {
-                      storeFile rootProject.file(keystoreProperties['storeFile'])
-                      storePassword keystoreProperties['storePassword']
-                      keyAlias keystoreProperties['keyAlias']
-                      keyPassword keystoreProperties['keyPassword']
-                  }
-              }
-          '''
+          signing = '''android {
+    signingConfigs {
+        release {
+            storeFile rootProject.file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+        }
+    }
+'''
           if 'signingConfigs {' not in text:
-              text = text.replace('android {', signing_config, 1)
-
+              text = text.replace('android {', signing, 1)
           if 'signingConfig signingConfigs.release' not in text:
-              text = re.sub(
-                  r'(buildTypes\s*\{\s*release\s*\{)',
-                  r'\1\n            signingConfig signingConfigs.release',
-                  text,
-                  count=1,
-              )
-
+              text = re.sub(r'(buildTypes\s*\{\s*release\s*\{)', r'\1\n            signingConfig signingConfigs.release', text, count=1)
           gradle.write_text(text, encoding='utf-8')
           PY
 
-      - name: Build debug APK and release APK AAB
+      - name: Build APK and AAB
         working-directory: android
         run: |
           chmod +x gradlew
@@ -267,45 +169,17 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: staff-android-debug-2.2.1
+          name: staff-android-debug-2.2.2
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload Google Play signed release
-        if: env.PLAY_SIGNED == 'true'
+      - name: Upload Google Play release
         uses: actions/upload-artifact@v7
         with:
-          name: staff-google-play-release-2.2.1
+          name: staff-google-play-release-2.2.2
           path: |
             android/app/build/outputs/apk/release/app-release.apk
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload CI release for technical validation
-        if: env.PLAY_SIGNED != 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: staff-ci-release-not-for-play-2.2.1
-          path: |
-            android/app/build/outputs/apk/release/app-release.apk
-            android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Google Play image assets
-        uses: actions/upload-artifact@v7
-        with:
-          name: staff-google-play-images-2.2.1
-          path: release-assets/*
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload Supabase migration
-        uses: actions/upload-artifact@v7
-        with:
-          name: staff-calendar-automations-sql
-          path: supabase/migrations/20260801_staff_calendar_automations_v1.sql
-          if-no-files-found: error
-          retention-days: 14
