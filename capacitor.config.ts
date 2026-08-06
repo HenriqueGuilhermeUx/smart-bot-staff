@@ -8,11 +8,17 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   backgroundColor: '#050816',
   loggingBehavior: 'production',
+  server: {
+    androidScheme: 'https',
+  },
   android: {
     backgroundColor: '#050816',
     allowMixedContent: false,
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     LocalNotifications: {
       iconColor: '#a855f7',
     },
