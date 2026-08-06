@@ -181,6 +181,7 @@ keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
           name: staff-google-play-release-2.2.2
           path: |
             android/app/build/outputs/apk/release/app-release.apk
+            # disparo manual do build 2.2.2
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30
