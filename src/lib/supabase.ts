@@ -3,19 +3,34 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dgtpfvjnuroxgamghicd.supabase.co'
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-// Create client only if we have the required values
+function runtimeFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return globalThis.fetch(input, init)
+}
+
+function normalizeAuthError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error || '')
+  if (/failed to fetch|network request failed|load failed|connection/i.test(message)) {
+    return new Error('Não foi possível conectar ao servidor do Staff. Verifique sua internet e tente novamente.')
+  }
+  return error instanceof Error ? error : new Error(message || 'Não foi possível concluir a autenticação.')
+}
+
 let supabase: SupabaseClient
 
-if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined' && supabaseKey !== 'undefined' && supabaseUrl !== '') {
-  supabase = createClient(supabaseUrl, supabaseKey)
+if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined' && supabaseKey !== 'undefined') {
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    global: { fetch: runtimeFetch },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  })
 } else {
-  // Create a placeholder that won't crash the app
   console.warn('Supabase credentials not configured. Set VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY before building the app.')
-  // Use a placeholder that will fail gracefully
   supabase = createClient('https://placeholder.supabase.co', 'placeholder-key')
 }
 
-// Types
 export interface StaffUser {
   id: number
   user_id: string
@@ -39,55 +54,40 @@ export interface StaffHistory {
   created_at: string
 }
 
-// Auth functions
 export async function signUp(email: string, password: string, name: string, whatsapp: string) {
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase não está configurado. Configure a chave pública antes de gerar o aplicativo.')
-  }
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        whatsapp
-      }
-    }
-  })
-
-  if (error) throw error
-
-  // Create staff user record
-  if (data.user) {
-    const { error: dbError } = await supabase
-      .from('staff_users')
-      .insert({
+  if (!supabaseUrl || !supabaseKey) throw new Error('Supabase não está configurado.')
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, whatsapp } },
+    })
+    if (error) throw error
+    if (data.user) {
+      const { error: dbError } = await supabase.from('staff_users').insert({
         user_id: data.user.id,
         name,
         email,
         phone_number: formatPhone(whatsapp),
-        status: 'active'
+        status: 'active',
       })
-
-    if (dbError) console.error('Error creating staff user:', dbError)
+      if (dbError) console.error('Error creating staff user:', dbError)
+    }
+    return data
+  } catch (error) {
+    throw normalizeAuthError(error)
   }
-
-  return data
 }
 
 export async function signIn(email: string, password: string) {
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase não está configurado. Configure a chave pública antes de gerar o aplicativo.')
+  if (!supabaseUrl || !supabaseKey) throw new Error('Supabase não está configurado.')
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    return data
+  } catch (error) {
+    throw normalizeAuthError(error)
   }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
-
-  if (error) throw error
-  return data
 }
 
 export async function signOut() {
@@ -105,69 +105,40 @@ export async function getSession() {
   return session
 }
 
-// Listen to auth state changes
 export function onAuthStateChange(callback: (user: any) => void) {
-  return supabase.auth.onAuthStateChange((event, session) => {
-    callback(session?.user || null)
-  })
+  return supabase.auth.onAuthStateChange((event, session) => callback(session?.user || null))
 }
 
-// Staff user functions
 export async function getStaffUser(userId: string) {
-  const { data, error } = await supabase
-    .from('staff_users')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
+  const { data, error } = await supabase.from('staff_users').select('*').eq('user_id', userId).single()
   if (error) throw error
   return data as StaffUser
 }
 
 export async function updateStaffUser(userId: string, updates: Partial<StaffUser>) {
-  const { error } = await supabase
-    .from('staff_users')
-    .update(updates)
-    .eq('user_id', userId)
-
+  const { error } = await supabase.from('staff_users').update(updates).eq('user_id', userId)
   if (error) throw error
 }
 
 export async function getStaffHistory(userId: number, limit = 50) {
-  const { data, error } = await supabase
-    .from('staff_history')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
+  const { data, error } = await supabase.from('staff_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)
   if (error) throw error
   return data as StaffHistory[]
 }
 
-// Utility functions
 export function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
-  if (digits.length === 10 || digits.length === 11) {
-    return `whatsapp:+55${digits}`
-  }
+  if (digits.length === 10 || digits.length === 11) return `whatsapp:+55${digits}`
   return digits.startsWith('whatsapp:+') ? digits : `whatsapp:+${digits}`
 }
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 export function formatDate(date: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(new Date(date))
 }
 
