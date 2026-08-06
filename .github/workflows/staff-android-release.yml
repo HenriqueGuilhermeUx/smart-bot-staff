@@ -9,6 +9,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -36,22 +37,73 @@ jobs:
           VITE_SUPABASE_URL: https://dgtpfvjnuroxgamghicd.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build
+        run: |
+          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+          npm run build
 
       - name: Create Android project
         run: |
-          rm -rf android
+          rm -rf android assets
           npx cap add android
           npx cap sync android
 
-      - name: Build debug APK
+      - name: Generate Android icon and splash
+        run: |
+          mkdir -p assets
+          cp public/staff-icon.svg assets/logo.svg
+          npx @capacitor/assets generate --android --assetPath assets --iconBackgroundColor '#050816' --iconBackgroundColorDark '#050816' --splashBackgroundColor '#050816' --splashBackgroundColorDark '#050816'
+
+      - name: Set Android version
+        run: |
+          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 24/' android/app/build.gradle
+          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.2.2"/' android/app/build.gradle
+
+      - name: Build debug APK and release AAB
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
+
+      - name: Sign release AAB
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::Cadastre os quatro secrets de assinatura Android."
+            exit 1
+          fi
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > staff-upload-key.jks
+
+          jarsigner \
+            -keystore staff-upload-key.jks \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            android/app/build/outputs/bundle/release/app-release.aab \
+            "$ANDROID_KEY_ALIAS"
+
+          jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: staff-android-debug-2.2.2
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed Google Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: staff-google-play-release-2.2.2
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
