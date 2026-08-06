@@ -1,0 +1,16 @@
+name: Staff Android Release 2.2.2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Confirm workflow
+        run: echo "Staff Android Release 2.2.2 ready"
