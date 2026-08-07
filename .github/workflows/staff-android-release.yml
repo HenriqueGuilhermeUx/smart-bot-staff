@@ -34,15 +34,10 @@ jobs:
 
       - name: Validate Supabase configuration
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then
-            echo "::error::Cadastre VITE_SUPABASE_URL com o Project URL real do Supabase."
-            exit 1
-          fi
-
           PUBLIC_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY:-$VITE_SUPABASE_ANON_KEY}"
           if [ -z "$PUBLIC_KEY" ]; then
             echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY."
@@ -60,7 +55,7 @@ jobs:
 
       - name: Build web application
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
