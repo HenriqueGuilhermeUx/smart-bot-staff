@@ -1,7 +1,19 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dgtpfvjnuroxgamghicd.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
+const supabaseKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+
+function isValidSupabaseConfiguration(): boolean {
+  if (!supabaseUrl || !supabaseKey) return false
+  try {
+    const url = new URL(supabaseUrl)
+    return url.protocol === 'https:' && Boolean(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+const supabaseConfigured = isValidSupabaseConfiguration()
 
 function runtimeFetch(input: RequestInfo | URL, init?: RequestInit) {
   return globalThis.fetch(input, init)
@@ -9,15 +21,21 @@ function runtimeFetch(input: RequestInfo | URL, init?: RequestInit) {
 
 function normalizeAuthError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error || '')
+
+  if (/unable to resolve host|no address associated with hostname|name not resolved|dns/i.test(message)) {
+    return new Error('O endereço do servidor do Staff não pôde ser localizado. O aplicativo precisa ser recompilado com o Project URL correto do Supabase.')
+  }
+
   if (/failed to fetch|network request failed|load failed|connection/i.test(message)) {
     return new Error('Não foi possível conectar ao servidor do Staff. Verifique sua internet e tente novamente.')
   }
+
   return error instanceof Error ? error : new Error(message || 'Não foi possível concluir a autenticação.')
 }
 
 let supabase: SupabaseClient
 
-if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined' && supabaseKey !== 'undefined') {
+if (supabaseConfigured) {
   supabase = createClient(supabaseUrl, supabaseKey, {
     global: { fetch: runtimeFetch },
     auth: {
@@ -27,8 +45,14 @@ if (supabaseUrl && supabaseKey && supabaseUrl !== 'undefined' && supabaseKey !==
     },
   })
 } else {
-  console.warn('Supabase credentials not configured. Set VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY before building the app.')
-  supabase = createClient('https://placeholder.supabase.co', 'placeholder-key')
+  console.error('Supabase não configurado. Defina VITE_SUPABASE_URL e uma chave pública antes do build.')
+  supabase = createClient('https://placeholder.invalid', 'placeholder-key')
+}
+
+function assertSupabaseConfigured() {
+  if (!supabaseConfigured) {
+    throw new Error('Servidor do Staff não configurado. Gere novamente o aplicativo com o Project URL e a chave pública corretos do Supabase.')
+  }
 }
 
 export interface StaffUser {
@@ -55,14 +79,17 @@ export interface StaffHistory {
 }
 
 export async function signUp(email: string, password: string, name: string, whatsapp: string) {
-  if (!supabaseUrl || !supabaseKey) throw new Error('Supabase não está configurado.')
+  assertSupabaseConfigured()
+
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name, whatsapp } },
     })
+
     if (error) throw error
+
     if (data.user) {
       const { error: dbError } = await supabase.from('staff_users').insert({
         user_id: data.user.id,
@@ -73,6 +100,7 @@ export async function signUp(email: string, password: string, name: string, what
       })
       if (dbError) console.error('Error creating staff user:', dbError)
     }
+
     return data
   } catch (error) {
     throw normalizeAuthError(error)
@@ -80,7 +108,8 @@ export async function signUp(email: string, password: string, name: string, what
 }
 
 export async function signIn(email: string, password: string) {
-  if (!supabaseUrl || !supabaseKey) throw new Error('Supabase não está configurado.')
+  assertSupabaseConfigured()
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
@@ -91,36 +120,46 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
+  assertSupabaseConfigured()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
 
 export async function getCurrentUser() {
+  assertSupabaseConfigured()
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
 
 export async function getSession() {
+  if (!supabaseConfigured) return null
   const { data: { session } } = await supabase.auth.getSession()
   return session
 }
 
 export function onAuthStateChange(callback: (user: any) => void) {
-  return supabase.auth.onAuthStateChange((event, session) => callback(session?.user || null))
+  if (!supabaseConfigured) {
+    callback(null)
+    return { data: { subscription: { unsubscribe() {} } } }
+  }
+  return supabase.auth.onAuthStateChange((_event, session) => callback(session?.user || null))
 }
 
 export async function getStaffUser(userId: string) {
+  assertSupabaseConfigured()
   const { data, error } = await supabase.from('staff_users').select('*').eq('user_id', userId).single()
   if (error) throw error
   return data as StaffUser
 }
 
 export async function updateStaffUser(userId: string, updates: Partial<StaffUser>) {
+  assertSupabaseConfigured()
   const { error } = await supabase.from('staff_users').update(updates).eq('user_id', userId)
   if (error) throw error
 }
 
 export async function getStaffHistory(userId: number, limit = 50) {
+  assertSupabaseConfigured()
   const { data, error } = await supabase.from('staff_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)
   if (error) throw error
   return data as StaffHistory[]
