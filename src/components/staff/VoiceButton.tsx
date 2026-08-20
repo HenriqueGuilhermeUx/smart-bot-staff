@@ -33,6 +33,13 @@ export function VoiceButton({
     return () => { void cancelStaffListening() }
   }, [])
 
+  useEffect(() => {
+    if (!privacyOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [privacyOpen])
+
   const listening = state === 'listening' || state === 'requesting-permission'
   const processing = state === 'processing'
 
@@ -141,19 +148,36 @@ export function VoiceButton({
       )}
 
       {privacyOpen && (
-        <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center">
-          <div className="w-full max-w-lg rounded-3xl bg-[#0a0f22] border border-purple-500/25 shadow-2xl p-6 md:p-7">
-            <div className="w-14 h-14 rounded-2xl bg-purple-500/15 flex items-center justify-center mb-5"><ShieldCheck className="w-7 h-7 text-purple-300" /></div>
-            <h2 className="text-2xl font-black text-white">Use sua voz com privacidade</h2>
-            <p className="text-slate-400 mt-3 leading-relaxed">
-              O microfone será usado somente enquanto você estiver falando com o Staff. A fala é transformada em texto para executar sua solicitação. O Staff não salva o áudio bruto.
-            </p>
-            <div className="mt-5 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-sm text-slate-400 leading-relaxed">
-              Dependendo do aparelho, o reconhecimento pode acontecer no próprio dispositivo ou pelo serviço de voz configurado no Android. Você pode continuar usando o app por texto a qualquer momento.
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="staff-voice-privacy-title"
+            className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-[#0a0f22] border border-purple-500/25 shadow-2xl overflow-hidden flex flex-col"
+            style={{ maxHeight: 'calc(100dvh - max(12px, env(safe-area-inset-top)) - 12px)' }}
+          >
+            <div className="overflow-y-auto overscroll-contain px-5 pt-5 pb-4 sm:px-7 sm:pt-7 sm:pb-5">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-500/15 flex items-center justify-center mb-4 sm:mb-5"><ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7 text-purple-300" /></div>
+              <h2 id="staff-voice-privacy-title" className="text-xl sm:text-2xl font-black text-white">Use sua voz com privacidade</h2>
+              <p className="text-slate-400 mt-3 leading-relaxed text-[15px] sm:text-base">
+                O microfone será usado somente enquanto você estiver falando com o Staff. A fala é transformada em texto para executar sua solicitação. O Staff não salva o áudio bruto.
+              </p>
+              <div className="mt-4 sm:mt-5 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-sm text-slate-400 leading-relaxed">
+                Dependendo do aparelho, o reconhecimento pode acontecer no próprio dispositivo ou pelo serviço de voz configurado no Android. Você pode continuar usando o app por texto a qualquer momento.
+              </div>
             </div>
-            <div className="grid sm:grid-cols-2 gap-3 mt-6">
-              <button type="button" onClick={() => setPrivacyOpen(false)} className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">Agora não</button>
-              <button type="button" onClick={acceptAndStart} className="btn-purple py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Mic className="w-5 h-5" /> Permitir e falar</button>
+
+            <div
+              className="shrink-0 border-t border-slate-800/80 bg-[#0a0f22]/98 px-5 pt-4 sm:px-7 sm:pb-6"
+              style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button type="button" onClick={() => setPrivacyOpen(false)} className="min-h-12 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold">Agora não</button>
+                <button type="button" onClick={acceptAndStart} className="btn-purple min-h-12 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Mic className="w-5 h-5" /> Permitir e falar</button>
+              </div>
             </div>
           </div>
         </div>
