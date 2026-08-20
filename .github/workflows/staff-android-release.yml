@@ -38,9 +38,12 @@ jobs:
 
       - name: Validate Netlify functions
         run: |
+          node --check functions/staff-chat.js
+          node --check netlify/functions/staff-chat.js
           node --check functions/staff-study.js
           npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
+          npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
 
       - name: Validate Supabase configuration
         env:
