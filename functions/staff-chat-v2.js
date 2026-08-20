@@ -38,15 +38,23 @@ exports.handler = async (event) => {
 
     const authorization = event.headers?.authorization || event.headers?.Authorization || ''
     if (!authorization.startsWith('Bearer ')) {
-      return response(401, { error: 'Sessão obrigatória.', response: 'Sua sessão expirou. Entre novamente no Staff com seu e-mail e senha.' })
+      return response(401, {
+        error: 'Sessão obrigatória.',
+        response: 'Sua sessão expirou. Entre novamente no Staff com seu e-mail e senha.',
+      })
     }
 
     const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: { apikey: backendSecret, Authorization: authorization },
     })
+
     if (!authResponse.ok) {
-      return response(401, { error: 'Sessão inválida.', response: 'Sua sessão expirou. Entre novamente no Staff com seu e-mail e senha.' })
+      return response(401, {
+        error: 'Sessão inválida.',
+        response: 'Sua sessão expirou. Entre novamente no Staff com seu e-mail e senha.',
+      })
     }
+
     const authUser = await authResponse.json()
     if (!authUser?.id) return response(401, { error: 'Sessão inválida.' })
 
@@ -67,7 +75,13 @@ exports.handler = async (event) => {
           Authorization: `Bearer ${backendSecret}`,
           Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ user_id: finalUserId, category: 'pessoal', content: memoryText, importance: 2, user_confirmed: true }),
+        body: JSON.stringify({
+          user_id: finalUserId,
+          category: 'pessoal',
+          content: memoryText,
+          importance: 2,
+          user_confirmed: true,
+        }),
       })
       if (!result.ok) console.error('Staff memory save warning:', (await result.text()).slice(0, 400))
       return result.ok
@@ -75,7 +89,9 @@ exports.handler = async (event) => {
 
     async function getMemories() {
       const url = `${supabaseUrl}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(finalUserId)}&archived=eq.false&select=category,content,created_at&order=created_at.desc&limit=30`
-      const result = await fetch(url, { headers: { apikey: backendSecret, Authorization: `Bearer ${backendSecret}` } })
+      const result = await fetch(url, {
+        headers: { apikey: backendSecret, Authorization: `Bearer ${backendSecret}` },
+      })
       if (!result.ok) {
         console.error('Staff memory read warning:', (await result.text()).slice(0, 400))
         return []
@@ -85,16 +101,22 @@ exports.handler = async (event) => {
 
     if (cleanMessage.toLowerCase().startsWith('lembrar:')) {
       const memoryText = cleanMessage.replace(/lembrar:/i, '').trim()
-      if (!memoryText) return response(400, { response: 'Me diga o que devo lembrar. Exemplo: lembrar: prefiro reuniões pela manhã.' })
+      if (!memoryText) {
+        return response(400, { response: 'Me diga o que devo lembrar. Exemplo: lembrar: prefiro reuniões pela manhã.' })
+      }
       const saved = await saveMemory(memoryText)
       return response(200, {
-        response: saved ? `Perfeito. Vou lembrar disso: ${memoryText}` : 'Entendi. Não consegui salvar essa memória agora, mas você pode tentar novamente em instantes.',
+        response: saved
+          ? `Perfeito. Vou lembrar disso: ${memoryText}`
+          : 'Entendi. Não consegui salvar essa memória agora, mas você pode tentar novamente em instantes.',
         timestamp: new Date().toISOString(),
       })
     }
 
     const memories = await getMemories()
-    const memoryText = memories.length ? memories.map((item) => `- ${item.content}`).join('\n') : 'Nenhuma memória salva ainda.'
+    const memoryText = memories.length
+      ? memories.map((item) => `- ${item.content}`).join('\n')
+      : 'Nenhuma memória salva ainda.'
 
     const systemPrompt = `Você é o Staff, assistente pessoal da Alternative Ventures.\n\nUsuário: ${displayName}.\n\nO Staff é um produto independente e está disponível para qualquer usuário autenticado com e-mail e senha.\n\nAjude com agenda, tarefas, estudos, família, saúde, trabalho, casa, documentos, finanças, metas e organização pessoal.\n\nMemórias conhecidas:\n${memoryText}\n\nRegras:\n- Responda em português brasileiro.\n- Seja amigável, útil e direto.\n- Nunca condicione o acesso a outro aplicativo, banco, fintech, assinatura ou ecossistema externo.\n- Nunca diga que o usuário precisa entrar por outro serviço para usar o Staff.\n- Use memórias somente quando relevantes.\n- Nunca invente memórias ou dados do usuário.\n- Priorize privacidade, segurança e ações confirmadas pelo usuário.`
 
@@ -106,19 +128,34 @@ exports.handler = async (event) => {
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ model, messages, max_tokens: 1200, temperature: 0.6 }),
     })
+
     if (!openaiResponse.ok) {
       console.error('Staff chat OpenAI error:', (await openaiResponse.text()).slice(0, 1200))
-      return response(502, { error: 'Não consegui responder agora.', response: 'Tive um problema ao responder agora. Tente novamente em instantes.' })
+      return response(502, {
+        error: 'Não consegui responder agora.',
+        response: 'Tive um problema ao responder agora. Tente novamente em instantes.',
+      })
     }
 
     const aiData = await openaiResponse.json()
     const aiMessage = aiData.choices?.[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.'
-    return response(200, { response: aiMessage, timestamp: new Date().toISOString(), backend: 'staff-public-v2' })
+
+    return response(200, {
+      response: aiMessage,
+      timestamp: new Date().toISOString(),
+      backend: 'staff-public-v2',
+    })
   } catch (error) {
     console.error('Staff chat v2 error:', error)
-    return response(500, { error: 'Internal server error', response: 'Tive um problema ao responder agora. Tente novamente em instantes.' })
+    return response(500, {
+      error: 'Internal server error',
+      response: 'Tive um problema ao responder agora. Tente novamente em instantes.',
+    })
   }
 }

@@ -1,4 +1,4 @@
-name: Staff Android Release 2.3.1
+name: Staff Android Release 2.3.2
 
 on:
   workflow_dispatch:
@@ -39,11 +39,21 @@ jobs:
       - name: Validate Netlify functions
         run: |
           node --check functions/staff-chat.js
+          node --check functions/staff-chat-v2.js
           node --check netlify/functions/staff-chat.js
+          node --check netlify/functions/staff-chat-v2.js
           node --check functions/staff-study.js
           npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
           npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
+
+      - name: Reject legacy Nexa access gate
+        run: |
+          if grep -R -n -E "Staff Premium é exclusivo|invalid_nexa_token|staff/validate-token|NEXA_API_URL" src functions netlify/functions; then
+            echo "::error::Foi encontrada uma regra antiga que condiciona o Staff à Nexa."
+            exit 1
+          fi
+          echo "Nenhum bloqueio de acesso Nexa encontrado."
 
       - name: Validate Supabase configuration
         env:
@@ -91,8 +101,8 @@ jobs:
 
       - name: Set Android version
         run: |
-          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 27/' android/app/build.gradle
-          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.1"/' android/app/build.gradle
+          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 28/' android/app/build.gradle
+          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.2"/' android/app/build.gradle
 
       - name: Verify Android voice permission
         run: |
@@ -133,7 +143,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: staff-android-debug-2.3.1
+          name: staff-android-debug-2.3.2
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -142,7 +152,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: staff-google-play-release-2.3.1
+          name: staff-google-play-release-2.3.2
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30

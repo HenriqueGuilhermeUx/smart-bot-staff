@@ -9,18 +9,10 @@ export default function AppV2() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
-  const [nexaBenefit, setNexaBenefit] = useState(false)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const nexaToken = params.get('nexaToken')
-    if (nexaToken) {
-      localStorage.setItem('nexaToken', nexaToken)
-      setNexaBenefit(true)
-      window.history.replaceState({}, document.title, window.location.pathname)
-    } else {
-      setNexaBenefit(Boolean(localStorage.getItem('nexaToken')))
-    }
+    // Staff is an independent product. Remove any legacy Nexa token left by older builds.
+    localStorage.removeItem('nexaToken')
 
     getSession().then((session) => {
       setUser(session?.user || null)
@@ -48,7 +40,7 @@ export default function AppV2() {
 
   return (
     <>
-      <StaffLanding onStart={setAuthMode} nexaBenefit={nexaBenefit} />
+      <StaffLanding onStart={setAuthMode} />
       {authMode && (
         <StaffAuthModal
           mode={authMode}

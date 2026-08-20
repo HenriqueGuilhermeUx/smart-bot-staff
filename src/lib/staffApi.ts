@@ -32,6 +32,24 @@ function staffFunctionPath(input: RequestInfo | URL) {
   return null
 }
 
+function independentStaffPath(path: string) {
+  return path.replace('/.netlify/functions/staff-chat', '/.netlify/functions/staff-chat-v2')
+}
+
+function sanitizeStaffChatBody(path: string, body: BodyInit | null | undefined) {
+  if (!path.includes('/.netlify/functions/staff-chat') || typeof body !== 'string') return body
+
+  try {
+    const payload = JSON.parse(body)
+    delete payload.nexaToken
+    delete payload.nexa_token
+    delete payload.user_id
+    return JSON.stringify(payload)
+  } catch {
+    return body
+  }
+}
+
 export function installStaffNativeApiBridge() {
   if (staffFetchBridgeInstalled) return
 
@@ -41,9 +59,11 @@ export function installStaffNativeApiBridge() {
     const functionPath = staffFunctionPath(input)
     if (!functionPath) return originalFetch(input, init)
 
-    let nextInput: RequestInfo | URL = input
+    const routedPath = independentStaffPath(functionPath)
+    let nextInput: RequestInfo | URL = routedPath
+
     if (Capacitor.isNativePlatform()) {
-      nextInput = `${STAFF_PRODUCTION_ORIGIN}${functionPath}`
+      nextInput = `${STAFF_PRODUCTION_ORIGIN}${routedPath}`
     }
 
     const headers = new Headers(
@@ -55,7 +75,8 @@ export function installStaffNativeApiBridge() {
       if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`)
     }
 
-    return originalFetch(nextInput, { ...init, headers })
+    const body = sanitizeStaffChatBody(functionPath, init?.body)
+    return originalFetch(nextInput, { ...init, body, headers })
   }) as typeof globalThis.fetch
 
   staffFetchBridgeInstalled = true
