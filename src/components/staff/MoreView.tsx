@@ -1,7 +1,8 @@
-import { ChevronRight, LayoutGrid, Settings, Zap } from 'lucide-react'
+import { ChevronRight, LayoutGrid, Settings, UsersRound, Zap } from 'lucide-react'
 import type { StaffScreen } from '@/lib/staffUi'
 
 const ITEMS: Array<{ screen: StaffScreen; title: string; description: string; icon: typeof LayoutGrid }> = [
+  { screen: 'family', title: 'Família', description: 'Filhos, Desafios Kids, estudos e progresso.', icon: UsersRound },
   { screen: 'life', title: 'Áreas da vida', description: 'Finanças, saúde, casa, família e mais.', icon: LayoutGrid },
   { screen: 'automations', title: 'Automações', description: 'Resumos, alertas e rotinas proativas.', icon: Zap },
   { screen: 'settings', title: 'Configurações', description: 'Notificações, integrações e privacidade.', icon: Settings },
@@ -13,7 +14,7 @@ export function MoreView({ onNavigate }: { onNavigate: (screen: StaffScreen) => 
       <div className="mb-6">
         <p className="text-purple-300 font-semibold">Central</p>
         <h1 className="text-3xl font-black text-white">Mais recursos</h1>
-        <p className="text-slate-500 mt-2">Acesse suas áreas, automações e preferências.</p>
+        <p className="text-slate-500 mt-2">Acesse Família, suas áreas, automações e preferências.</p>
       </div>
       <div className="space-y-4">
         {ITEMS.map((item) => (

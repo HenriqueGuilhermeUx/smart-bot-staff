@@ -1,14 +1,14 @@
 {
   "name": "Staff: Assistente com IA",
   "short_name": "Staff",
-  "description": "Organize agenda, tarefas e rotinas com voz e inteligência artificial.",
+  "description": "Organize agenda, tarefas, rotina familiar e estudos com voz e inteligência artificial.",
   "theme_color": "#050816",
   "background_color": "#050816",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
-  "categories": ["productivity", "lifestyle", "utilities"],
+  "categories": ["productivity", "lifestyle", "education", "utilities"],
   "icons": [
     {
       "src": "/staff-icon.svg",

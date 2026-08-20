@@ -1,57 +1,74 @@
-# Ficha oficial — Google Play (pt-BR)
+# Ficha oficial — Google Play (pt-BR) — Staff 2.3.0
 
 ## Identidade
 
 - Nome na Play Store: `Staff: Assistente com IA`
 - Nome no aparelho: `Staff`
 - Package / applicationId: `br.com.alternativeventures.staff`
+- Versão: `2.3.0`
+- Version code: `26`
 - Desenvolvedor: `Alternative Ventures Ltda`
-- Categoria recomendada: `Produtividade`
+- Categoria principal recomendada: `Produtividade`
 - E-mail de suporte: `henriquecampos66@gmail.com`
 - Site: `https://alternativeventures.com.br`
 - Política de Privacidade: `https://app.smartbots.club/privacy.html`
 - Exclusão de conta: `https://app.smartbots.club/account-deletion.html`
 - Termos de Uso: `https://app.smartbots.club/terms.html`
 
-## Descrição curta — 69 caracteres
+## Descrição curta
 
-Organize agenda, tarefas e rotinas com voz e inteligência artificial.
+Organize sua rotina e a família com voz, agenda, estudos e desafios.
 
 ## Descrição completa
 
-Staff é um assistente pessoal com inteligência artificial para organizar sua rotina em um só lugar.
+Staff é um assistente pessoal com inteligência artificial para organizar sua rotina e ajudar na gestão da família em um só lugar.
 
-Use texto ou voz para criar compromissos, tarefas, lembretes e automações. Consulte o que você tem no dia, acompanhe pendências e mantenha informações importantes organizadas com uma experiência simples e direta.
+Use texto ou voz para criar compromissos, tarefas, lembretes e automações. Consulte o dia, acompanhe pendências e mantenha informações importantes organizadas de forma simples e direta.
 
 PRINCIPAIS RECURSOS
 
-• Agenda com visualizações por dia, semana e mês
-• Criação e edição de compromissos
-• Eventos recorrentes e lembretes
+• Agenda por dia, semana e mês
+• Compromissos recorrentes e lembretes
 • Detecção de conflitos de horário
 • Tarefas com prazo, prioridade e status
 • Automações para resumos e alertas
 • Comandos de voz em português brasileiro
-• Transcrição em tempo real
 • Respostas faladas opcionais
 • Notificações locais
-• Áreas da vida para organizar saúde, família, trabalho, casa e outros temas
+• Áreas da vida para saúde, família, trabalho, casa e outros temas
 
-EXEMPLOS DE COMANDOS
+STAFF FAMÍLIA
 
-“Agende uma consulta amanhã às 14h.”
-“Crie uma reunião toda segunda-feira às 9h.”
-“Quais são meus compromissos de hoje?”
-“Me lembre de pagar o condomínio na sexta.”
-“Abra minhas automações.”
+O responsável pode criar perfis dos filhos dentro da própria conta, sem login infantil independente.
+
+• Desafios Kids por faixa etária
+• Atividades de lógica, matemática, português, ciências e percepção
+• Sessões de 5, 10 ou 15 minutos
+• PIN parental para liberar mais tempo ou sair da sessão
+• Leitura das perguntas por voz para atividades selecionadas
+• Histórico de sessões e progresso
+
+ESTUDOS DOS FILHOS
+
+O responsável pode fotografar ou enviar PDF de cadernos, livros, atividades e apostilas. O Staff prepara um material organizado com:
+
+• resumo
+• texto para estudo
+• pontos-chave
+• perguntas de revisão
+• explicações
+• flashcards
+• biblioteca separada por filho
+
+No modo “Somente o material enviado”, a geração é orientada a usar apenas o conteúdo reconhecido no arquivo e a sinalizar trechos insuficientes ou ilegíveis.
 
 PRIVACIDADE E CONTROLE
 
-O microfone é usado somente quando você toca para falar. O Staff não armazena o áudio bruto. Dependendo do aparelho, o reconhecimento de voz pode ser processado localmente ou pelo serviço de voz configurado no Android.
+O microfone é usado somente quando o usuário inicia o recurso de voz. O Staff não armazena áudio bruto.
 
-Ações que alteram ou excluem dados exigem confirmação. O usuário pode consultar a Política de Privacidade e excluir sua conta e os dados associados diretamente nas configurações do aplicativo.
+Os perfis infantis são administrados pela conta do responsável. Os Desafios Kids básicos ficam no aplicativo e não enviam respostas da criança para o modelo de inteligência artificial. A análise de material escolar é iniciada pelo responsável.
 
-O Staff funciona de forma independente. Integrações adicionais são opcionais.
+O usuário pode consultar a Política de Privacidade e excluir a conta e os dados associados nas configurações do aplicativo.
 
 Desenvolvido por Alternative Ventures Ltda.
 
@@ -59,12 +76,16 @@ Desenvolvido por Alternative Ventures Ltda.
 
 - Ícone: `staff-play-icon-512.png` — 512 × 512 PNG com alfa
 - Recurso gráfico: `staff-feature-graphic-1024x500.png` — 1024 × 500 PNG RGB sem alfa
-- Capturas de tela: devem ser tiradas do APK real, sem telas fictícias
+- Capturas de tela: devem ser tiradas do APK real da versão 2.3.0
 
 ## Declaração objetiva de microfone
 
-O microfone é usado somente quando o usuário toca no botão de voz para converter fala em texto e executar a solicitação. O Staff não armazena áudio bruto.
+O microfone é usado somente quando o usuário toca no botão de voz para converter fala em texto e executar a solicitação. No Android, o Staff usa a interface de reconhecimento de voz do sistema. O Staff não armazena áudio bruto.
 
 ## Declaração de exclusão
 
-O aplicativo permite exclusão autenticada em `Mais → Configurações → Excluir conta e dados`. A página pública permite registrar uma solicitação sem reinstalar ou acessar o aplicativo.
+O aplicativo permite exclusão autenticada em `Mais → Configurações → Excluir conta e dados`. A exclusão inclui dados da área Família, biblioteca de estudos, arquivos privados salvos e progresso associado à conta.
+
+## Atenção ao envio 2.3.0
+
+Como a versão inclui funcionalidades que podem ser utilizadas por crianças sob supervisão do responsável, revisar e atualizar na Play Console as declarações de Público-alvo e conteúdo e Segurança dos dados antes de enviar a versão para análise.

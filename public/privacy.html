@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Política de Privacidade — Staff</title>
-  <meta name="description" content="Política de Privacidade do Staff: dados, voz, agenda, tarefas, automações e exclusão de conta." />
+  <meta name="description" content="Política de Privacidade do Staff: conta, voz, agenda, Família, Desafios Kids, materiais de estudo e exclusão de dados." />
   <style>
     :root { color-scheme:dark; font-family:Inter,Arial,sans-serif; background:#050816; color:#e2e8f0; }
     * { box-sizing:border-box; }
@@ -27,13 +27,10 @@
 </head>
 <body>
 <main>
-  <header>
-    <div class="mark" aria-hidden="true">✦</div>
-    <div><div style="color:#c4b5fd;font-weight:700">Staff</div><h1>Política de Privacidade</h1></div>
-  </header>
+  <header><div class="mark" aria-hidden="true">✦</div><div><div style="color:#c4b5fd;font-weight:700">Staff</div><h1>Política de Privacidade</h1></div></header>
 
   <article class="card">
-    <p><strong>Última atualização:</strong> 4 de agosto de 2026.</p>
+    <p><strong>Última atualização:</strong> 19 de agosto de 2026.</p>
     <p>Esta Política explica como a <strong>Alternative Ventures Ltda</strong>, CNPJ 61.920.356/0001-38, trata dados pessoais no aplicativo <strong>Staff: Assistente com IA</strong>, no site e nos serviços relacionados.</p>
 
     <h2>1. Quem controla os dados</h2>
@@ -42,42 +39,51 @@
     <h2>2. Dados tratados</h2>
     <ul>
       <li><strong>Conta e perfil:</strong> nome, e-mail, telefone ou WhatsApp informado, identificador de usuário e dados de autenticação administrados pelo Supabase;</li>
-      <li><strong>Conteúdo criado pelo usuário:</strong> tarefas, lembretes, compromissos, recorrências, mensagens, memórias, automações, preferências e notificações;</li>
+      <li><strong>Conteúdo do usuário:</strong> tarefas, lembretes, compromissos, mensagens, memórias, automações, preferências e notificações;</li>
       <li><strong>Voz:</strong> transcrição dos comandos quando o usuário escolhe usar o microfone;</li>
-      <li><strong>Dados técnicos:</strong> informações estritamente necessárias para sessão, segurança, funcionamento, prevenção de abuso e diagnóstico de falhas.</li>
+      <li><strong>Staff Família:</strong> nome ou apelido do filho, faixa etária, série escolar opcional, avatar escolhido pelo responsável, resultados de desafios e revisões;</li>
+      <li><strong>Estudos:</strong> fotos ou PDFs de cadernos, livros, atividades e apostilas enviados pelo responsável, além dos resumos, perguntas, flashcards e resultados de estudo gerados a partir desse material;</li>
+      <li><strong>Dados técnicos:</strong> informações necessárias para sessão, segurança, funcionamento, prevenção de abuso e diagnóstico de falhas.</li>
     </ul>
 
     <h2>3. Microfone, reconhecimento e síntese de voz</h2>
-    <div class="notice"><strong>O Staff não mantém o microfone aberto continuamente e não armazena o áudio bruto.</strong> O microfone é iniciado somente após uma ação do usuário e enquanto a interface indicar que está ouvindo.</div>
-    <p>A fala é convertida em texto para executar a solicitação. Dependendo do aparelho, do Android e das configurações do usuário, o reconhecimento e a síntese podem ser processados localmente ou pelo serviço de voz configurado no dispositivo. O usuário pode negar ou revogar a permissão e continuar usando as funções disponíveis por texto.</p>
+    <div class="notice"><strong>O Staff não mantém o microfone aberto continuamente e não armazena o áudio bruto.</strong> O microfone é iniciado somente após uma ação do usuário e enquanto a interface de reconhecimento estiver ativa.</div>
+    <p>A fala é convertida em texto para executar a solicitação. Dependendo do aparelho e das configurações do Android, o reconhecimento e a síntese podem ser processados localmente ou pelo serviço de voz configurado no dispositivo. A permissão pode ser negada ou revogada.</p>
 
-    <h2>4. Finalidades e bases de tratamento</h2>
-    <p>Tratamos dados para criar e autenticar a conta, prestar as funcionalidades solicitadas, armazenar agenda e tarefas, executar automações, gerar respostas, programar lembretes, proteger a conta, atender solicitações de suporte e cumprir obrigações legais. Conforme o caso, o tratamento se baseia na execução do serviço solicitado, consentimento, legítimo interesse relacionado à segurança e funcionamento, e cumprimento de obrigação legal.</p>
+    <h2>4. Staff Família, Desafios Kids e dados de menores</h2>
+    <div class="notice"><strong>O Staff não cria conta independente para crianças.</strong> Os perfis infantis existem dentro da conta autenticada e sob controle do pai, mãe ou responsável legal.</div>
+    <p>O responsável pode cadastrar apenas um nome ou apelido, selecionar uma faixa etária e, opcionalmente, informar a série escolar. Não solicitamos data de nascimento, e-mail, telefone ou credenciais da criança para usar o módulo Família.</p>
+    <p>Os <strong>Desafios Kids</strong> básicos ficam no próprio aplicativo e não enviam as respostas da criança para um modelo de inteligência artificial. O Staff pode armazenar, na conta do responsável, dados de sessão como duração, quantidade de perguntas e número de acertos para mostrar progresso.</p>
+    <p>O PIN parental é usado para liberar mais tempo ou sair da sessão infantil. O valor é transformado em um hash e mantido localmente no dispositivo; o Staff não envia o PIN para o servidor.</p>
 
-    <h2>5. Fornecedores e compartilhamento</h2>
-    <p>Não vendemos dados pessoais. Para operar o Staff, dados podem ser processados por fornecedores necessários, incluindo:</p>
+    <h2>5. Materiais escolares e inteligência artificial</h2>
+    <p>A função Estudos é iniciada pelo responsável. Quando ele solicita a preparação de um estudo, o arquivo relevante e informações mínimas do perfil educacional são enviados ao backend do Staff e ao provedor de inteligência artificial contratado para gerar resumo, texto de estudo, perguntas e flashcards.</p>
+    <p>No modo <strong>Somente o material enviado</strong>, o sistema é instruído a usar apenas informações claramente presentes no arquivo e a sinalizar conteúdo ilegível ou insuficiente. O resultado deve ser revisado pelo responsável, pois sistemas automatizados podem cometer erros.</p>
+    <p>Os arquivos que o responsável opta por salvar ficam em armazenamento privado associado à conta. O conteúdo gerado fica vinculado ao perfil infantil escolhido, mas continua sob controle da conta do responsável.</p>
+
+    <h2>6. Finalidades e bases de tratamento</h2>
+    <p>Tratamos dados para autenticar a conta, prestar as funcionalidades solicitadas, armazenar agenda e tarefas, executar automações, gerar respostas, preparar estudos solicitados pelo responsável, manter a biblioteca familiar, registrar progresso, programar lembretes, proteger a conta, atender suporte e cumprir obrigações legais. Conforme o caso, o tratamento se apoia na execução do serviço solicitado, consentimento, legítimo interesse relacionado à segurança e funcionamento e cumprimento de obrigação legal.</p>
+
+    <h2>7. Fornecedores e compartilhamento</h2>
+    <p>Não vendemos dados pessoais. Para operar o Staff, informações podem ser processadas por fornecedores necessários, incluindo:</p>
     <ul>
-      <li><strong>Supabase:</strong> autenticação, banco de dados e infraestrutura relacionada;</li>
-      <li><strong>Netlify:</strong> hospedagem do site, funções de backend e registro de formulários;</li>
-      <li><strong>serviços do Android:</strong> reconhecimento e síntese de voz conforme o aparelho e as escolhas do usuário;</li>
-      <li><strong>provedores de inteligência artificial contratados:</strong> quando necessários para produzir a resposta solicitada, limitados ao conteúdo relevante da interação.</li>
+      <li><strong>Supabase:</strong> autenticação, banco de dados e armazenamento privado dos materiais que o responsável salva;</li>
+      <li><strong>Netlify:</strong> hospedagem e funções de backend;</li>
+      <li><strong>OpenAI:</strong> processamento de solicitações de inteligência artificial, inclusive análise de material escolar quando o responsável aciona a função Estudos;</li>
+      <li><strong>serviços de voz do Android:</strong> reconhecimento e síntese de voz conforme o aparelho e as escolhas do usuário.</li>
     </ul>
     <p>Também poderemos compartilhar dados quando houver obrigação legal, ordem de autoridade competente, proteção de direitos ou investigação de fraude e abuso.</p>
 
-    <h2>6. Transferência e armazenamento</h2>
-    <p>Os fornecedores podem manter infraestrutura fora do Brasil. Nesses casos, buscamos utilizar serviços com medidas contratuais e técnicas compatíveis com a proteção de dados. Os dados são mantidos enquanto a conta estiver ativa e pelo tempo necessário para cumprir a finalidade informada. Após a exclusão, dados associados são removidos, salvo retenção estritamente necessária por obrigação legal, prevenção de fraude ou defesa de direitos.</p>
+    <h2>8. Transferência, retenção e segurança</h2>
+    <p>Fornecedores podem manter infraestrutura fora do Brasil. Buscamos usar serviços e medidas técnicas compatíveis com a proteção dos dados. Dados de conta são mantidos enquanto necessários ao serviço ou enquanto a conta permanecer ativa, ressalvadas retenções exigidas por lei ou necessárias à defesa de direitos.</p>
+    <p>Usamos autenticação, controles de acesso por usuário, armazenamento privado, regras de banco de dados e conexões protegidas. Nenhum sistema é totalmente isento de risco, mas adotamos medidas razoáveis para reduzir acesso indevido, perda, alteração e uso incompatível.</p>
 
-    <h2>7. Segurança</h2>
-    <p>Usamos autenticação, controles de acesso por usuário, conexões protegidas e regras de banco de dados. Nenhum sistema é totalmente isento de risco, mas adotamos medidas razoáveis para reduzir acesso indevido, perda, alteração e uso incompatível.</p>
+    <h2>9. Direitos e controle pelo responsável</h2>
+    <p>Nos termos aplicáveis da LGPD, o titular pode solicitar confirmação de tratamento, acesso, correção, informação sobre compartilhamento, eliminação e outros direitos previstos em lei. Quando os dados dizem respeito ao perfil de um filho, as ações de cadastro, exclusão de perfil, exclusão de materiais e gestão do conteúdo são realizadas pela conta do responsável.</p>
 
-    <h2>8. Direitos do titular</h2>
-    <p>Nos termos da LGPD, o usuário pode solicitar confirmação de tratamento, acesso, correção, portabilidade quando aplicável, informação sobre compartilhamento, anonimização, bloqueio, eliminação, oposição e revisão de consentimento. A identidade poderá ser confirmada antes do atendimento.</p>
-
-    <h2>9. Exclusão da conta e dos dados</h2>
-    <p>O usuário autenticado pode excluir a conta diretamente em <strong>Mais → Configurações → Excluir conta e dados</strong>. Quem não conseguir acessar o aplicativo pode registrar uma solicitação na página pública <a href="/account-deletion.html">Exclusão de conta do Staff</a>. A exclusão não significa apenas desativação: a conta de autenticação e os dados associados são removidos, observadas as exceções legais descritas nesta Política.</p>
-
-    <h2>10. Crianças e adolescentes</h2>
-    <p>O Staff não é direcionado a crianças sem a participação do responsável legal. Caso identifiquemos tratamento indevido de dados de menor, adotaremos medidas para restringir o uso e eliminar os dados quando cabível.</p>
+    <h2>10. Exclusão da conta e dos dados</h2>
+    <p>O usuário autenticado pode excluir a conta em <strong>Mais → Configurações → Excluir conta e dados</strong>. A exclusão remove a conta de autenticação e os dados associados, incluindo perfis dos filhos, materiais e resultados de estudo, sessões dos Desafios Kids e arquivos privados de estudo, observadas exceções legais estritamente necessárias.</p>
+    <p>Quem não conseguir acessar o aplicativo pode usar a página pública <a href="/account-deletion.html">Exclusão de conta do Staff</a>.</p>
 
     <h2>11. Alterações desta Política</h2>
     <p>Esta Política pode ser atualizada para refletir mudanças no produto, fornecedores ou legislação. A versão vigente e a data de atualização permanecerão publicadas nesta página.</p>
@@ -85,11 +91,7 @@
     <h2>12. Contato</h2>
     <p><strong>Alternative Ventures Ltda</strong><br />CNPJ 61.920.356/0001-38<br />E-mail: <a href="mailto:henriquecampos66@gmail.com?subject=Privacidade%20Staff">henriquecampos66@gmail.com</a><br />Site: <a href="https://alternativeventures.com.br">alternativeventures.com.br</a></p>
 
-    <nav class="links" aria-label="Documentos legais">
-      <a href="/account-deletion.html">Excluir conta</a>
-      <a href="/terms.html">Termos de Uso</a>
-      <a href="/">Voltar ao Staff</a>
-    </nav>
+    <nav class="links" aria-label="Documentos legais"><a href="/account-deletion.html">Excluir conta</a><a href="/terms.html">Termos de Uso</a><a href="/">Voltar ao Staff</a></nav>
   </article>
 
   <footer>Staff: Assistente com IA · Alternative Ventures Ltda · CNPJ 61.920.356/0001-38</footer>

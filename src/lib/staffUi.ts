@@ -1,6 +1,6 @@
 import type { StaffCategory, StaffTask } from '@/lib/staffData'
 
-export type StaffScreen = 'today' | 'calendar' | 'chat' | 'tasks' | 'life' | 'automations' | 'settings' | 'more'
+export type StaffScreen = 'today' | 'calendar' | 'chat' | 'tasks' | 'life' | 'family' | 'automations' | 'settings' | 'more'
 export type AuthMode = 'login' | 'signup'
 
 export const CATEGORY_LABELS: Record<StaffCategory, string> = {

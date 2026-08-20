@@ -11,6 +11,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Settings,
+  UsersRound,
   Zap,
 } from 'lucide-react'
 import {
@@ -64,6 +65,7 @@ import { AgendaView } from '@/components/staff/AgendaView'
 import { AutomationsView } from '@/components/staff/AutomationsView'
 import { MoreView } from '@/components/staff/MoreView'
 import { VoiceButton } from '@/components/staff/VoiceButton'
+import { FamilyHub } from '@/components/staff/FamilyHub'
 
 export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [screen, setScreen] = useState<StaffScreen>('today')
@@ -261,6 +263,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
     { id: 'chat' as StaffScreen, label: 'Conversar', icon: MessageCircle },
     { id: 'tasks' as StaffScreen, label: 'Tarefas', icon: ListTodo },
     { id: 'life' as StaffScreen, label: 'Vida', icon: LayoutGrid },
+    { id: 'family' as StaffScreen, label: 'Família', icon: UsersRound },
     { id: 'automations' as StaffScreen, label: 'Automações', icon: Zap },
     { id: 'settings' as StaffScreen, label: 'Ajustes', icon: Settings },
   ]
@@ -273,7 +276,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
     { id: 'more' as StaffScreen, label: 'Mais', icon: MoreHorizontal },
   ]
 
-  const mobileActive = ['life', 'automations', 'settings', 'more'].includes(screen) ? 'more' : screen
+  const mobileActive = ['life', 'family', 'automations', 'settings', 'more'].includes(screen) ? 'more' : screen
   const unreadCount = notifications.filter((item) => !item.read_at).length
 
   if (loading) {
@@ -318,8 +321,8 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
           ))}
         </nav>
         <div className="mt-5 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
-          <p className="text-xs font-semibold text-purple-200">Agora com voz</p>
-          <p className="text-[11px] text-slate-500 mt-1">Use o microfone para organizar o dia sem digitar.</p>
+          <p className="text-xs font-semibold text-purple-200">Voz + Família</p>
+          <p className="text-[11px] text-slate-500 mt-1">Organize o dia por voz e acompanhe estudos e desafios dos filhos.</p>
         </div>
       </aside>
 
@@ -351,6 +354,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
             />
           )}
           {screen === 'life' && <LifeView onOpenChat={openLifeChat} />}
+          {screen === 'family' && <FamilyHub user={user} />}
           {screen === 'automations' && (
             <AutomationsView
               automations={automations}
@@ -376,7 +380,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
         </div>
       </main>
 
-      {screen !== 'chat' && <VoiceButton floating onTranscript={openVoiceChat} />}
+      {screen !== 'chat' && screen !== 'family' && <VoiceButton floating onTranscript={openVoiceChat} />}
 
       <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-[#070b1a]/95 backdrop-blur-xl border-t border-slate-800 safe-area-bottom">
         <div className="grid grid-cols-5 px-2 py-2">

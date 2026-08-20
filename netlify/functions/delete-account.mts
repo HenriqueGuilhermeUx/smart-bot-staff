@@ -33,6 +33,28 @@ export default async (request: Request) => {
   if (userError || !userData.user) return json({ error: 'Sessão inválida ou expirada.' }, 401)
   const userId = userData.user.id
 
+  const cleanupErrors: string[] = []
+
+  // Remove private study files before deleting their database records.
+  const { data: studyRows, error: studyListError } = await admin
+    .from('staff_study_materials')
+    .select('file_path')
+    .eq('user_id', userId)
+
+  if (studyListError && !isMissingRelation(studyListError)) {
+    console.error('delete-account list study files:', studyListError)
+    cleanupErrors.push('staff-study-materials-storage')
+  } else {
+    const paths = (studyRows || []).map((row: any) => row.file_path).filter(Boolean)
+    if (paths.length) {
+      const { error: storageError } = await admin.storage.from('staff-study-materials').remove(paths)
+      if (storageError) {
+        console.error('delete-account study storage:', storageError)
+        cleanupErrors.push('staff-study-materials-storage')
+      }
+    }
+  }
+
   const { data: staffUser } = await admin
     .from('staff_users')
     .select('id')
@@ -41,10 +63,18 @@ export default async (request: Request) => {
 
   if (staffUser?.id) {
     const { error } = await admin.from('staff_history').delete().eq('user_id', staffUser.id)
-    if (error && !isMissingRelation(error)) console.error('delete-account staff_history:', error)
+    if (error && !isMissingRelation(error)) {
+      console.error('delete-account staff_history:', error)
+      cleanupErrors.push('staff_history')
+    }
   }
 
+  // Child-dependent rows first; profiles are removed last.
   const tables = [
+    'staff_study_attempts',
+    'staff_kids_game_sessions',
+    'staff_study_materials',
+    'staff_children',
     'staff_event_reminders',
     'staff_event_recurrences',
     'staff_automation_runs',
@@ -60,7 +90,6 @@ export default async (request: Request) => {
     'staff_users',
   ]
 
-  const cleanupErrors: string[] = []
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq('user_id', userId)
     if (error && !isMissingRelation(error)) {
@@ -70,7 +99,7 @@ export default async (request: Request) => {
   }
 
   if (cleanupErrors.length > 0) {
-    return json({ error: 'Não foi possível concluir a limpeza dos dados.', tables: cleanupErrors }, 500)
+    return json({ error: 'Não foi possível concluir a limpeza dos dados.', tables: [...new Set(cleanupErrors)] }, 500)
   }
 
   const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId)

@@ -22,6 +22,7 @@ function navigationFromCommand(text: string): StaffScreen | null {
   if (!wantsNavigation) return null
   if (/(agenda|calendario|compromissos)/.test(value)) return 'calendar'
   if (/(tarefas|lembretes|pendencias)/.test(value)) return 'tasks'
+  if (/(familia|filhos|desafios kids|estudos dos filhos|estudos infantis)/.test(value)) return 'family'
   if (/(automacoes|rotinas automaticas)/.test(value)) return 'automations'
   if (/(ajustes|configuracoes|preferencias)/.test(value)) return 'settings'
   if (/(areas da vida|vida)/.test(value)) return 'life'
@@ -37,6 +38,7 @@ function navigationLabel(screen: StaffScreen) {
     chat: 'Conversar',
     tasks: 'Tarefas',
     life: 'Áreas da vida',
+    family: 'Família',
     automations: 'Automações',
     settings: 'Configurações',
   }
@@ -239,7 +241,7 @@ export function ChatView({
             <div className="flex flex-wrap justify-center gap-2 mt-5">
               {[
                 'Agende reunião amanhã às 10h e me avise 30 minutos antes',
-                'Crie um resumo diário às 7h',
+                'Abra Família',
                 'O que eu tenho hoje?',
               ].map((suggestion) => (
                 <button key={suggestion} onClick={() => setInput(suggestion)} className="px-3 py-2 rounded-full bg-slate-900 border border-slate-800 text-sm text-slate-400 hover:text-purple-200">{suggestion}</button>
