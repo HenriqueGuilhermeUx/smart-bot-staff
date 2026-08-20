@@ -1,7 +1,9 @@
-name: Staff Android Release 2.2.3
+name: Staff Android Release 2.3.0
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -9,7 +11,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -78,8 +80,12 @@ jobs:
 
       - name: Set Android version
         run: |
-          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 25/' android/app/build.gradle
-          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.2.3"/' android/app/build.gradle
+          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 26/' android/app/build.gradle
+          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.0"/' android/app/build.gradle
+
+      - name: Verify Android voice permission
+        run: |
+          grep -R "android.permission.RECORD_AUDIO" android/app/build/intermediates/merged_manifests android/app/src node_modules/@capgo/capacitor-speech-recognition/android/src/main/AndroidManifest.xml 2>/dev/null || true
 
       - name: Build debug APK and release AAB
         working-directory: android
@@ -88,6 +94,7 @@ jobs:
           ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
 
       - name: Sign release AAB
+        if: github.event_name == 'workflow_dispatch'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -115,15 +122,24 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: staff-android-debug-2.2.3
+          name: staff-android-debug-2.3.0
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
 
       - name: Upload signed Google Play AAB
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: staff-google-play-release-2.2.3
+          name: staff-google-play-release-2.3.0
           path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Staff 2.3 database migration
+        uses: actions/upload-artifact@v4
+        with:
+          name: staff-family-studies-sql-2.3.0
+          path: supabase/migrations/20260819_staff_family_studies_v1.sql
           if-no-files-found: error
           retention-days: 30
