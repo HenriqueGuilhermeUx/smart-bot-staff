@@ -1,87 +1,112 @@
-// Simple REST API calls only - no Supabase client to avoid WebSocket issues
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function response(statusCode, body) {
+  return { statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: corsHeaders, body: '' }
+  if (event.httpMethod !== 'POST') return response(405, { error: 'Método não permitido.' })
 
   try {
-    const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, NEXA_API_URL } = process.env
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OPENAI_API_KEY || !NEXA_API_URL) {
-      return { statusCode: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Server configuration missing' }) }
-    }
+    const supabaseUrl = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '')
+    const backendSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    const openaiKey = process.env.OPENAI_API_KEY || ''
+    if (!supabaseUrl || !backendSecret || !openaiKey) return response(500, { error: 'Staff backend não configurado.' })
 
-    const { user_id, message, conversation_history, nexaToken } = JSON.parse(event.body || '{}')
-    if (!message) return { statusCode: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Message is required' }) }
+    const authorization = event.headers?.authorization || event.headers?.Authorization || ''
+    if (!authorization.startsWith('Bearer ')) return response(401, { error: 'Sessão obrigatória.', response: 'Sua sessão expirou. Entre novamente no Staff.' })
 
-    const validateResponse = await fetch(`${NEXA_API_URL}/staff/validate-token`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: nexaToken })
+    const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { apikey: backendSecret, Authorization: authorization },
     })
-    const validateData = await validateResponse.json().catch(() => ({}))
-    if (!validateResponse.ok || !validateData.valid) {
-      return { statusCode: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ response: 'O Staff Premium é exclusivo para clientes Nexa. Abra pelo app Nexa para liberar seu acesso.', error: 'invalid_nexa_token' }) }
-    }
+    if (!authResponse.ok) return response(401, { error: 'Sessão inválida.', response: 'Sua sessão expirou. Entre novamente no Staff.' })
+    const authUser = await authResponse.json()
+    if (!authUser?.id) return response(401, { error: 'Sessão inválida.' })
 
-    const nexaUser = validateData.user || {}
-    const finalUserId = user_id || nexaUser.userId || nexaUser.email
+    const { message, conversation_history } = JSON.parse(event.body || '{}')
+    if (!String(message || '').trim()) return response(400, { error: 'Message is required' })
+
+    const finalUserId = authUser.id
+    const displayName = authUser.user_metadata?.name || authUser.email?.split('@')?.[0] || 'usuário'
 
     async function saveMemory(memoryText) {
-      if (!finalUserId || !memoryText) return false
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_memories`, {
+      if (!memoryText) return false
+      const result = await fetch(`${supabaseUrl}/rest/v1/staff_memories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, Prefer: 'return=minimal' },
-        body: JSON.stringify({ user_id: finalUserId, category: 'geral', memory: memoryText })
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: backendSecret,
+          Authorization: `Bearer ${backendSecret}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ user_id: finalUserId, category: 'geral', memory: memoryText }),
       })
-      return response.ok
+      return result.ok
     }
 
     async function getMemories() {
-      if (!finalUserId) return []
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(finalUserId)}&select=category,memory,created_at&order=created_at.desc&limit=50`, {
-        method: 'GET', headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+      const result = await fetch(`${supabaseUrl}/rest/v1/staff_memories?user_id=eq.${encodeURIComponent(finalUserId)}&select=category,memory,created_at&order=created_at.desc&limit=50`, {
+        headers: { apikey: backendSecret, Authorization: `Bearer ${backendSecret}` },
       })
-      return response.ok ? response.json() : []
+      return result.ok ? result.json() : []
     }
 
-    const lowerMessage = String(message).toLowerCase().trim()
-    if (lowerMessage.startsWith('lembrar:')) {
-      const memoryText = message.replace(/lembrar:/i, '').trim()
-      if (!memoryText) return { statusCode: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ response: 'Me diga o que devo lembrar. Exemplo: lembrar: meu carro é um Corolla 2023' }) }
+    const cleanMessage = String(message).trim()
+    if (cleanMessage.toLowerCase().startsWith('lembrar:')) {
+      const memoryText = cleanMessage.replace(/lembrar:/i, '').trim()
+      if (!memoryText) return response(400, { response: 'Me diga o que devo lembrar. Exemplo: lembrar: meu carro é um Corolla 2023' })
       await saveMemory(memoryText)
-      return { statusCode: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ response: `Perfeito. Vou lembrar disso: ${memoryText}`, timestamp: new Date().toISOString() }) }
+      return response(200, { response: `Perfeito. Vou lembrar disso: ${memoryText}`, timestamp: new Date().toISOString() })
     }
 
     const memories = await getMemories()
-    const memoryText = memories.length ? memories.map((m) => `- ${m.memory}`).join('\n') : 'Nenhuma memória salva ainda.'
-    const systemPrompt = `Você é o Staff by Nexa, assistente pessoal premium do ecossistema Nexa.\n\nUsuário Nexa:\n- Nome: ${nexaUser.name || 'não informado'}\n- E-mail: ${nexaUser.email || 'não informado'}\n- ID: ${nexaUser.userId || 'não informado'}\n\nVocê ajuda o usuário com agenda, finanças, saúde, trabalho, casa, documentos, segurança e organização pessoal.\n\nMemórias conhecidas do usuário:\n${memoryText}\n\nRegras:\n- Responda em português brasileiro\n- Seja amigável, útil e direto\n- Use as memórias quando forem relevantes\n- Nunca invente memórias\n- Priorize privacidade e segurança.`
+    const memoryText = memories.length ? memories.map((item) => `- ${item.memory}`).join('\n') : 'Nenhuma memória salva ainda.'
 
-    const messages = [{ role: 'system', content: systemPrompt }, ...(conversation_history || []).slice(-10), { role: 'user', content: message }]
+    const systemPrompt = `Você é o Staff, assistente pessoal da Alternative Ventures.\n\nUsuário: ${displayName}.\n\nAjude com agenda, tarefas, estudos, família, saúde, trabalho, casa, documentos, finanças, metas e organização pessoal.\n\nMemórias conhecidas:\n${memoryText}\n\nRegras:\n- Responda em português brasileiro.\n- Seja amigável, útil e direto.\n- Use memórias somente quando relevantes.\n- Nunca invente memórias ou dados do usuário.\n- Nexa é uma integração opcional e nunca deve ser exigida para usar o Staff.\n- Priorize privacidade, segurança e ações confirmadas pelo usuário.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...(Array.isArray(conversation_history) ? conversation_history.slice(-10) : []),
+      { role: 'user', content: cleanMessage },
+    ]
+
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST', headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 1000, temperature: 0.7 })
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 1000, temperature: 0.7 }),
     })
-    if (!openaiResponse.ok) throw new Error('Failed to get response from AI')
+    if (!openaiResponse.ok) {
+      console.error('Staff chat OpenAI error:', (await openaiResponse.text()).slice(0, 1000))
+      return response(502, { error: 'Não consegui responder agora.', response: 'Tive um problema ao responder agora. Tente novamente em instantes.' })
+    }
+
     const aiData = await openaiResponse.json()
     const aiMessage = aiData.choices?.[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.'
 
     try {
-      const saveMessage = async (content, direction) => fetch(`${SUPABASE_URL}/rest/v1/staff_messages`, {
+      const saveMessage = (content, direction) => fetch(`${supabaseUrl}/rest/v1/staff_messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, Prefer: 'return=minimal' },
-        body: JSON.stringify({ user_id: finalUserId, content, direction })
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: backendSecret,
+          Authorization: `Bearer ${backendSecret}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ user_id: finalUserId, content, direction }),
       })
-      await saveMessage(message, 'inbound')
+      await saveMessage(cleanMessage, 'inbound')
       await saveMessage(aiMessage, 'outbound')
-    } catch (dbError) {
-      console.log('Could not save to database, continuing...')
+    } catch (error) {
+      console.error('Staff chat persistence warning:', error)
     }
 
-    return { statusCode: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ response: aiMessage, timestamp: new Date().toISOString() }) }
+    return response(200, { response: aiMessage, timestamp: new Date().toISOString() })
   } catch (error) {
     console.error('Chat function error:', error)
-    return { statusCode: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Internal server error', message: error.message }) }
+    return response(500, { error: 'Internal server error', message: error instanceof Error ? error.message : String(error) })
   }
 }
