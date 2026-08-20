@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core'
+import { supabase } from '@/lib/supabase'
 
 const STAFF_PRODUCTION_ORIGIN = 'https://app.smartbots.club'
-let nativeFetchBridgeInstalled = false
+let staffFetchBridgeInstalled = false
 
 export function staffFunctionUrl(functionName: string) {
   const safeName = functionName.replace(/^\/+|\/+$/g, '')
@@ -11,28 +12,51 @@ export function staffFunctionUrl(functionName: string) {
   return `/.netlify/functions/${safeName}`
 }
 
+function staffFunctionPath(input: RequestInfo | URL) {
+  try {
+    if (typeof input === 'string') {
+      if (input.startsWith('/.netlify/functions/')) return input
+      const parsed = new URL(input, window.location.origin)
+      return parsed.pathname.startsWith('/.netlify/functions/') ? `${parsed.pathname}${parsed.search}${parsed.hash}` : null
+    }
+    if (input instanceof URL) {
+      return input.pathname.startsWith('/.netlify/functions/') ? `${input.pathname}${input.search}${input.hash}` : null
+    }
+    if (typeof Request !== 'undefined' && input instanceof Request) {
+      const parsed = new URL(input.url)
+      return parsed.pathname.startsWith('/.netlify/functions/') ? `${parsed.pathname}${parsed.search}${parsed.hash}` : null
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
 export function installStaffNativeApiBridge() {
-  if (!Capacitor.isNativePlatform() || nativeFetchBridgeInstalled) return
+  if (staffFetchBridgeInstalled) return
 
   const originalFetch = globalThis.fetch.bind(globalThis)
 
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    let nextInput: RequestInfo | URL = input
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const functionPath = staffFunctionPath(input)
+    if (!functionPath) return originalFetch(input, init)
 
-    if (typeof input === 'string' && input.startsWith('/.netlify/functions/')) {
-      nextInput = `${STAFF_PRODUCTION_ORIGIN}${input}`
-    } else if (input instanceof URL && input.pathname.startsWith('/.netlify/functions/')) {
-      nextInput = new URL(`${input.pathname}${input.search}${input.hash}`, STAFF_PRODUCTION_ORIGIN)
-    } else if (typeof Request !== 'undefined' && input instanceof Request) {
-      const requestUrl = new URL(input.url)
-      if (requestUrl.pathname.startsWith('/.netlify/functions/')) {
-        const absoluteUrl = new URL(`${requestUrl.pathname}${requestUrl.search}${requestUrl.hash}`, STAFF_PRODUCTION_ORIGIN)
-        nextInput = new Request(absoluteUrl, input)
-      }
+    let nextInput: RequestInfo | URL = input
+    if (Capacitor.isNativePlatform()) {
+      nextInput = `${STAFF_PRODUCTION_ORIGIN}${functionPath}`
     }
 
-    return originalFetch(nextInput, init)
+    const headers = new Headers(
+      init?.headers || (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined),
+    )
+
+    if (!headers.has('Authorization')) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`)
+    }
+
+    return originalFetch(nextInput, { ...init, headers })
   }) as typeof globalThis.fetch
 
-  nativeFetchBridgeInstalled = true
+  staffFetchBridgeInstalled = true
 }
