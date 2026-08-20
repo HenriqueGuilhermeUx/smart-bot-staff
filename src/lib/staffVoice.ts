@@ -65,11 +65,20 @@ function friendlyRecognitionError(code?: string) {
   }
   if (normalized.includes('network')) return 'O serviço de voz está sem conexão. Tente novamente ou digite sua solicitação.'
   if (normalized.includes('busy') || normalized.includes('recognizer')) return 'O reconhecimento de voz está ocupado. Aguarde um instante e tente novamente.'
+  if (normalized.includes('unavailable')) return 'O reconhecimento de voz não está disponível neste aparelho.'
   return 'Não consegui reconhecer sua fala. Tente novamente.'
 }
 
 export function usesNativeVoice() {
   return Capacitor.isNativePlatform()
+}
+
+function usesAndroidVoice() {
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
 export function hasAcceptedVoicePrivacy() {
@@ -105,9 +114,8 @@ export async function staffVoiceAvailable() {
 export async function stopStaffListening() {
   if (usesNativeVoice()) {
     if (!nativeListening) return
-    await SpeechRecognition.forceStop({ timeout: 1200 }).catch(async () => {
-      await SpeechRecognition.stop().catch(() => undefined)
-    })
+    await SpeechRecognition.stop().catch(() => undefined)
+    nativeListening = false
     return
   }
   activeBrowserRecognition?.stop()
@@ -116,12 +124,54 @@ export async function stopStaffListening() {
 export async function cancelStaffListening() {
   if (usesNativeVoice()) {
     if (!nativeListening) return
-    await SpeechRecognition.forceStop({ timeout: 500 }).catch(() => undefined)
+    await SpeechRecognition.stop().catch(() => undefined)
     nativeListening = false
     return
   }
   activeBrowserRecognition?.abort()
   activeBrowserRecognition = null
+}
+
+async function ensureNativePermission(callbacks: StaffVoiceCallbacks) {
+  callbacks.onState?.('requesting-permission')
+
+  const permission = await SpeechRecognition.checkPermissions()
+  if (permission.speechRecognition === 'granted') return
+
+  const requested = await SpeechRecognition.requestPermissions()
+  if (requested.speechRecognition !== 'granted') throw new Error('permission-denied')
+
+  // Give Android time to resume the Capacitor activity after closing the permission sheet.
+  if (usesAndroidVoice()) await wait(600)
+}
+
+async function listenAndroid(callbacks: StaffVoiceCallbacks) {
+  await ensureNativePermission(callbacks)
+
+  nativeListening = true
+  callbacks.onState?.('listening')
+
+  try {
+    // Use Android's system speech dialog instead of inline/on-device recognition.
+    // This is the most compatible path across Samsung/Google recognizer implementations.
+    const result = await SpeechRecognition.start({
+      language: VOICE_LANGUAGE,
+      maxResults: 3,
+      partialResults: false,
+      popup: true,
+      prompt: 'Fale com o Staff',
+      useOnDeviceRecognition: false,
+    })
+
+    const transcript = normalizeTranscript(result.matches?.[0] || '')
+    if (!transcript) throw new Error('no-speech')
+
+    callbacks.onPartial?.(transcript)
+    callbacks.onState?.('processing')
+    return transcript
+  } finally {
+    nativeListening = false
+  }
 }
 
 async function listenNative(callbacks: StaffVoiceCallbacks) {
@@ -136,10 +186,6 @@ async function listenNative(callbacks: StaffVoiceCallbacks) {
     : await SpeechRecognition.requestPermissions()
 
   if (resolvedPermission.speechRecognition !== 'granted') throw new Error('permission-denied')
-
-  const onDevice = await SpeechRecognition
-    .isOnDeviceRecognitionAvailable({ language: VOICE_LANGUAGE })
-    .catch(() => ({ available: false }))
 
   return new Promise<string>(async (resolve, reject) => {
     let lastPartial = ''
@@ -205,13 +251,7 @@ async function listenNative(callbacks: StaffVoiceCallbacks) {
         maxResults: 3,
         partialResults: true,
         popup: false,
-        addPunctuation: true,
-        allowForSilence: 1400,
-        useOnDeviceRecognition: onDevice.available,
-        contextualStrings: [
-          'Staff', 'agenda', 'automação', 'reunião', 'consulta', 'lembrete', 'tarefa',
-          'resumo diário', 'planejamento semanal', 'cardiologista', 'condomínio',
-        ],
+        useOnDeviceRecognition: false,
       })
 
       const immediateText = normalizeTranscript(immediate.matches?.[0] || '')
@@ -221,7 +261,7 @@ async function listenNative(callbacks: StaffVoiceCallbacks) {
       }
 
       timeoutId = window.setTimeout(() => {
-        void SpeechRecognition.forceStop({ timeout: 800 }).catch(() => undefined)
+        void SpeechRecognition.stop().catch(() => undefined)
       }, 25000)
     } catch (error) {
       await finish(false, error instanceof Error ? error.message : String(error))
@@ -288,7 +328,10 @@ function listenWeb(callbacks: StaffVoiceCallbacks) {
 export async function listenForStaffCommand(callbacks: StaffVoiceCallbacks = {}) {
   try {
     await cancelStaffListening()
-    return usesNativeVoice() ? await listenNative(callbacks) : await listenWeb(callbacks)
+
+    if (usesAndroidVoice()) return await listenAndroid(callbacks)
+    if (usesNativeVoice()) return await listenNative(callbacks)
+    return await listenWeb(callbacks)
   } catch (error) {
     const message = friendlyRecognitionError(error instanceof Error ? error.message : String(error))
     callbacks.onState?.('error')
