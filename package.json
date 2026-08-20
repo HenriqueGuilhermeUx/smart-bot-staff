@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/patch-speech-recognition-manifest.mjs",
     "dev": "vite",
     "typecheck": "tsc -b",
     "build": "vite build",
