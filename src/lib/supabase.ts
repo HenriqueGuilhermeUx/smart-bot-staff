@@ -23,11 +23,19 @@ function normalizeAuthError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error || '')
 
   if (/unable to resolve host|no address associated with hostname|name not resolved|dns/i.test(message)) {
-    return new Error('O endereço do servidor do Staff não pôde ser localizado. O aplicativo precisa ser recompilado com o Project URL correto do Supabase.')
+    return new Error('O endereço do servidor do Staff não pôde ser localizado. Tente novamente em outra conexão.')
   }
 
   if (/failed to fetch|network request failed|load failed|connection/i.test(message)) {
     return new Error('Não foi possível conectar ao servidor do Staff. Verifique sua internet e tente novamente.')
+  }
+
+  if (/invalid login credentials/i.test(message)) {
+    return new Error('E-mail ou senha incorretos.')
+  }
+
+  if (/user already registered|already been registered/i.test(message)) {
+    return new Error('Este e-mail já possui uma conta. Faça login.')
   }
 
   return error instanceof Error ? error : new Error(message || 'Não foi possível concluir a autenticação.')
@@ -51,7 +59,7 @@ if (supabaseConfigured) {
 
 function assertSupabaseConfigured() {
   if (!supabaseConfigured) {
-    throw new Error('Servidor do Staff não configurado. Gere novamente o aplicativo com o Project URL e a chave pública corretos do Supabase.')
+    throw new Error('Servidor do Staff não configurado.')
   }
 }
 
@@ -78,29 +86,20 @@ export interface StaffHistory {
   created_at: string
 }
 
-export async function signUp(email: string, password: string, name: string, whatsapp: string) {
+export async function signUp(email: string, password: string) {
   assertSupabaseConfigured()
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const displayName = normalizedEmail.split('@')[0] || 'Usuário'
 
   try {
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
-      options: { data: { name, whatsapp } },
+      options: { data: { name: displayName } },
     })
 
     if (error) throw error
-
-    if (data.user) {
-      const { error: dbError } = await supabase.from('staff_users').insert({
-        user_id: data.user.id,
-        name,
-        email,
-        phone_number: formatPhone(whatsapp),
-        status: 'active',
-      })
-      if (dbError) console.error('Error creating staff user:', dbError)
-    }
-
     return data
   } catch (error) {
     throw normalizeAuthError(error)
@@ -111,7 +110,10 @@ export async function signIn(email: string, password: string) {
   assertSupabaseConfigured()
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
     if (error) throw error
     return data
   } catch (error) {
@@ -145,6 +147,7 @@ export function onAuthStateChange(callback: (user: any) => void) {
   return supabase.auth.onAuthStateChange((_event, session) => callback(session?.user || null))
 }
 
+// Legacy helpers kept for backwards compatibility with older Staff data.
 export async function getStaffUser(userId: string) {
   assertSupabaseConfigured()
   const { data, error } = await supabase.from('staff_users').select('*').eq('user_id', userId).single()
@@ -167,6 +170,7 @@ export async function getStaffHistory(userId: number, limit = 50) {
 
 export function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
+  if (!digits) return ''
   if (digits.length === 10 || digits.length === 11) return `whatsapp:+55${digits}`
   return digits.startsWith('whatsapp:+') ? digits : `whatsapp:+${digits}`
 }
