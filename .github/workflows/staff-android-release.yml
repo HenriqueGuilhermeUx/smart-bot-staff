@@ -34,6 +34,12 @@ jobs:
       - name: Type-check application
         run: npm run typecheck
 
+      - name: Validate Netlify functions
+        run: |
+          node --check functions/staff-study.js
+          npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
+          npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
+
       - name: Validate Supabase configuration
         env:
           VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
