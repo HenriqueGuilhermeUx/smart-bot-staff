@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, Bell, Check, CheckCircle2, ChevronRight, Loader2, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Bell, Check, ChevronRight, Loader2, Sparkles, X } from 'lucide-react'
 import { signIn, signUp } from '@/lib/supabase'
 import type { AuthMode } from '@/lib/staffUi'
 import { StaffLogo } from '@/components/staff/Brand'
 import { LegalFooter } from '@/components/staff/LegalFooter'
 
-export function StaffLanding({ onStart, nexaBenefit }: { onStart: (mode: AuthMode) => void; nexaBenefit: boolean }) {
+export function StaffLanding({ onStart }: { onStart: (mode: AuthMode) => void }) {
   return (
     <div className="min-h-screen bg-dark text-white overflow-hidden">
       <header className="container mx-auto flex items-center justify-between py-5">
@@ -21,17 +21,12 @@ export function StaffLanding({ onStart, nexaBenefit }: { onStart: (mode: AuthMod
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-200 text-sm mb-7">
               <Sparkles className="w-4 h-4" /> Sua vida organizada com a ajuda da IA
             </div>
-            {nexaBenefit && (
-              <div className="mb-5 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm">
-                <CheckCircle2 className="w-4 h-4" /> Benefício Nexa detectado. Entre para conectar sua conta.
-              </div>
-            )}
             <h1 className="text-5xl md:text-7xl font-black leading-[1.02] tracking-tight mb-6">
               Seu Staff pessoal,
               <span className="block text-gradient">sempre com você.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-400 max-w-2xl leading-relaxed mb-9">
-              Organize compromissos, tarefas, contas, saúde, família, documentos e metas em um único assistente pessoal inteligente.
+              Organize compromissos, tarefas, contas, saúde, família, documentos, estudos e metas em um único assistente pessoal inteligente.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={() => onStart('signup')} className="btn-purple px-7 py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
@@ -43,8 +38,8 @@ export function StaffLanding({ onStart, nexaBenefit }: { onStart: (mode: AuthMod
             </div>
             <div className="flex flex-wrap gap-5 mt-8 text-sm text-slate-400">
               <span className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Plano gratuito</span>
-              <span className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Dados sob seu controle</span>
-              <span className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Nexa opcional</span>
+              <span className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> E-mail + senha</span>
+              <span className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Sem vínculo com outro serviço</span>
             </div>
           </section>
 
@@ -89,7 +84,6 @@ export function StaffAuthModal({ mode, onMode, onClose, onAuthenticated }: {
   onClose: () => void
   onAuthenticated: () => void
 }) {
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -104,7 +98,7 @@ export function StaffAuthModal({ mode, onMode, onClose, onAuthenticated }: {
         await signIn(email, password)
         onAuthenticated()
       } else {
-        const result = await signUp(email, password, name, '')
+        const result = await signUp(email, password)
         if (result.session) onAuthenticated()
         else setMessage('Conta criada. Confirme o e-mail enviado para você e depois faça login.')
       }
@@ -122,22 +116,16 @@ export function StaffAuthModal({ mode, onMode, onClose, onAuthenticated }: {
         <StaffLogo />
         <div className="mt-7 mb-6">
           <h2 className="text-2xl font-black text-white">{mode === 'login' ? 'Bem-vindo de volta' : 'Crie seu Staff pessoal'}</h2>
-          <p className="text-slate-400 mt-2">{mode === 'login' ? 'Entre para acessar sua rotina.' : 'Comece gratuitamente e organize sua vida.'}</p>
+          <p className="text-slate-400 mt-2">{mode === 'login' ? 'Entre com seu e-mail e senha.' : 'Só precisa de um e-mail e uma senha. O Staff é aberto a qualquer pessoa.'}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <label className="block">
-              <span className="text-sm text-slate-300">Nome</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="Seu nome" />
-            </label>
-          )}
           <label className="block">
             <span className="text-sm text-slate-300">E-mail</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="voce@email.com" />
+            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="voce@email.com" />
           </label>
           <label className="block">
             <span className="text-sm text-slate-300">Senha</span>
-            <input type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="Mínimo 6 caracteres" />
+            <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="Mínimo 6 caracteres" />
           </label>
           <button disabled={loading} className="w-full btn-purple py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : mode === 'login' ? 'Entrar' : 'Criar conta gratuita'}
