@@ -1,5 +1,29 @@
 .kids-flip-card {
   perspective: 1400px;
+  position: relative;
+  isolation: isolate;
+}
+
+.kids-flip-card::before,
+.kids-flip-card::after {
+  content: '';
+  position: absolute;
+  inset: 10px 18px -12px;
+  border-radius: 32px;
+  border: 1px solid rgba(139, 92, 246, .18);
+  background: rgba(15, 23, 42, .72);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.kids-flip-card::before {
+  transform: rotate(-3deg) translate(-8px, 10px);
+  opacity: .72;
+}
+
+.kids-flip-card::after {
+  transform: rotate(3deg) translate(8px, 10px);
+  opacity: .48;
 }
 
 .kids-flip-inner {
