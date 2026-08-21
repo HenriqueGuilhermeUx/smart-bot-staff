@@ -61,21 +61,41 @@ export type StudyAttempt = {
   created_at: string
 }
 
+function familyError(error: any, context: string) {
+  const raw = String(error?.message || error || '')
+  const code = String(error?.code || '')
+
+  if (code === 'PGRST205' || code === '42P01' || /could not find the table|relation .* does not exist|schema cache/i.test(raw)) {
+    return new Error('Os dados de Família existem, mas o Supabase ainda não os disponibilizou pela API. Saia e entre novamente; se persistir, atualize o cache do esquema no Supabase.')
+  }
+
+  if (/jwt|session|auth|permission|row-level security|rls/i.test(raw)) {
+    return new Error('Não consegui acessar os dados de Família com esta sessão. Saia da conta, entre novamente e tente outra vez.')
+  }
+
+  if (/failed to fetch|network|connection|dns/i.test(raw)) {
+    return new Error('Não consegui sincronizar Família agora. Verifique a internet e tente novamente.')
+  }
+
+  const clean = raw.replace(/staff_[a-z0-9_]+/gi, 'dados do Staff').trim()
+  return new Error(clean ? `${context}: ${clean}` : `${context}. Tente novamente.`)
+}
+
 export async function loadChildren(userId: string): Promise<StaffChild[]> {
   const { data, error } = await supabase.from('staff_children').select('*').eq('user_id', userId).order('created_at', { ascending: true })
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui carregar os perfis dos filhos')
   return (data || []) as StaffChild[]
 }
 
 export async function createChild(userId: string, input: Pick<StaffChild, 'display_name' | 'age_group' | 'school_grade' | 'avatar_emoji'>) {
   const { data, error } = await supabase.from('staff_children').insert({ user_id: userId, ...input }).select('*').single()
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui cadastrar o perfil')
   return data as StaffChild
 }
 
 export async function updateChild(userId: string, childId: string, updates: Partial<Pick<StaffChild, 'display_name' | 'age_group' | 'school_grade' | 'avatar_emoji'>>) {
   const { data, error } = await supabase.from('staff_children').update(updates).eq('id', childId).eq('user_id', userId).select('*').single()
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui atualizar o perfil')
   return data as StaffChild
 }
 
@@ -86,22 +106,22 @@ export async function deleteChild(userId: string, childId: string) {
     .eq('user_id', userId)
     .eq('child_id', childId)
 
-  if (filesError) throw filesError
+  if (filesError) throw familyError(filesError, 'Não consegui localizar os arquivos de estudo')
   const paths = (files || []).map((item: { file_path: string | null }) => item.file_path).filter((value): value is string => Boolean(value))
   if (paths.length) {
     const { error: storageError } = await supabase.storage.from('staff-study-materials').remove(paths)
-    if (storageError) throw storageError
+    if (storageError) throw familyError(storageError, 'Não consegui excluir os arquivos de estudo')
   }
 
   const { error } = await supabase.from('staff_children').delete().eq('id', childId).eq('user_id', userId)
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui excluir o perfil')
 }
 
 export async function loadStudyMaterials(userId: string, childId?: string): Promise<StudyMaterial[]> {
   let query = supabase.from('staff_study_materials').select('*').eq('user_id', userId).order('created_at', { ascending: false })
   if (childId) query = query.eq('child_id', childId)
   const { data, error } = await query
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui carregar os materiais de estudo')
   return (data || []) as StudyMaterial[]
 }
 
@@ -117,17 +137,17 @@ export async function saveStudyMaterial(input: { userId: string; childId: string
     source_only: input.sourceOnly !== false,
     study_pack: input.pack,
   }).select('*').single()
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui salvar o material de estudo')
   return data as StudyMaterial
 }
 
 export async function deleteStudyMaterial(userId: string, material: StudyMaterial) {
   if (material.file_path) {
     const { error: storageError } = await supabase.storage.from('staff-study-materials').remove([material.file_path])
-    if (storageError) throw storageError
+    if (storageError) throw familyError(storageError, 'Não consegui excluir o arquivo')
   }
   const { error } = await supabase.from('staff_study_materials').delete().eq('id', material.id).eq('user_id', userId)
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui excluir o material')
 }
 
 export async function uploadStudyFile(userId: string, childId: string, file: File) {
@@ -137,7 +157,7 @@ export async function uploadStudyFile(userId: string, childId: string, file: Fil
     contentType: file.type || 'application/octet-stream',
     upsert: false,
   })
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui enviar o arquivo')
   return path
 }
 
@@ -207,7 +227,7 @@ export async function analyzeStudyMaterial(input: { child: StaffChild; file: Fil
 
 export async function saveKidsGameSession(userId: string, input: Omit<KidsGameSession, 'id' | 'user_id'>) {
   const { data, error } = await supabase.from('staff_kids_game_sessions').insert({ user_id: userId, ...input }).select('*').single()
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui salvar a sessão dos Desafios Kids')
   return data as KidsGameSession
 }
 
@@ -215,13 +235,13 @@ export async function loadKidsGameSessions(userId: string, childId?: string): Pr
   let query = supabase.from('staff_kids_game_sessions').select('*').eq('user_id', userId).order('started_at', { ascending: false }).limit(100)
   if (childId) query = query.eq('child_id', childId)
   const { data, error } = await query
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui carregar o progresso dos Desafios Kids')
   return (data || []) as KidsGameSession[]
 }
 
 export async function saveStudyAttempt(userId: string, input: Omit<StudyAttempt, 'id' | 'user_id' | 'created_at'>) {
   const { data, error } = await supabase.from('staff_study_attempts').insert({ user_id: userId, ...input }).select('*').single()
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui salvar o resultado do estudo')
   return data as StudyAttempt
 }
 
@@ -229,6 +249,6 @@ export async function loadStudyAttempts(userId: string, childId?: string): Promi
   let query = supabase.from('staff_study_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100)
   if (childId) query = query.eq('child_id', childId)
   const { data, error } = await query
-  if (error) throw error
+  if (error) throw familyError(error, 'Não consegui carregar o progresso dos estudos')
   return (data || []) as StudyAttempt[]
 }
