@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, Bell, Check, ChevronRight, Loader2, Sparkles, X } from 'lucide-react'
-import { signIn, signUp } from '@/lib/supabase'
+import { ArrowLeft, ArrowRight, Bell, Check, ChevronRight, Loader2, Mail, Sparkles, X } from 'lucide-react'
+import { requestPasswordReset, signIn, signUp } from '@/lib/supabase'
 import type { AuthMode } from '@/lib/staffUi'
 import { StaffLogo } from '@/components/staff/Brand'
 import { LegalFooter } from '@/components/staff/LegalFooter'
@@ -88,12 +88,21 @@ export function StaffAuthModal({ mode, onMode, onClose, onAuthenticated }: {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setLoading(true)
     setMessage('')
     try {
+      if (forgotPassword) {
+        await requestPasswordReset(email)
+        setResetSent(true)
+        setMessage('Link enviado. Abra o e-mail do Staff para criar uma nova senha ou excluir a conta com segurança.')
+        return
+      }
+
       if (mode === 'login') {
         await signIn(email, password)
         onAuthenticated()
@@ -109,32 +118,73 @@ export function StaffAuthModal({ mode, onMode, onClose, onAuthenticated }: {
     }
   }
 
+  function startRecovery() {
+    setForgotPassword(true)
+    setResetSent(false)
+    setPassword('')
+    setMessage('')
+  }
+
+  function backToLogin() {
+    setForgotPassword(false)
+    setResetSent(false)
+    setMessage('')
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center">
       <div className="glass-card w-full max-w-md p-7 relative">
         <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         <StaffLogo />
-        <div className="mt-7 mb-6">
-          <h2 className="text-2xl font-black text-white">{mode === 'login' ? 'Bem-vindo de volta' : 'Crie seu Staff pessoal'}</h2>
-          <p className="text-slate-400 mt-2">{mode === 'login' ? 'Entre com seu e-mail e senha.' : 'Só precisa de um e-mail e uma senha. O Staff é aberto a qualquer pessoa.'}</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block">
-            <span className="text-sm text-slate-300">E-mail</span>
-            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="voce@email.com" />
-          </label>
-          <label className="block">
-            <span className="text-sm text-slate-300">Senha</span>
-            <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="Mínimo 6 caracteres" />
-          </label>
-          <button disabled={loading} className="w-full btn-purple py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : mode === 'login' ? 'Entrar' : 'Criar conta gratuita'}
-          </button>
-        </form>
-        {message && <p className="mt-4 text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">{message}</p>}
-        <button onClick={() => onMode(mode === 'login' ? 'signup' : 'login')} className="w-full mt-5 text-sm text-purple-300 hover:text-purple-200">
-          {mode === 'login' ? 'Ainda não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}
-        </button>
+
+        {forgotPassword ? (
+          <>
+            <div className="mt-7 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 grid place-items-center mb-4"><Mail className="w-6 h-6 text-purple-300" /></div>
+              <h2 className="text-2xl font-black text-white">Recuperar acesso</h2>
+              <p className="text-slate-400 mt-2">Informe o e-mail da conta. Enviaremos um link para você criar uma nova senha. O mesmo link também permite excluir a conta após verificar o e-mail.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <label className="block">
+                <span className="text-sm text-slate-300">E-mail</span>
+                <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required disabled={resetSent} className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500 disabled:opacity-60" placeholder="voce@email.com" />
+              </label>
+              {!resetSent && (
+                <button disabled={loading} className="w-full btn-purple py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enviar link de recuperação'}
+                </button>
+              )}
+            </form>
+            {message && <p className="mt-4 text-sm text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">{message}</p>}
+            <p className="mt-3 text-xs text-slate-500">Confira também a pasta de spam. Por segurança, o Staff não informa se um e-mail está ou não cadastrado.</p>
+            <button onClick={backToLogin} className="w-full mt-5 text-sm text-purple-300 hover:text-purple-200 flex items-center justify-center gap-2"><ArrowLeft className="w-4 h-4" /> Voltar ao login</button>
+          </>
+        ) : (
+          <>
+            <div className="mt-7 mb-6">
+              <h2 className="text-2xl font-black text-white">{mode === 'login' ? 'Bem-vindo de volta' : 'Crie seu Staff pessoal'}</h2>
+              <p className="text-slate-400 mt-2">{mode === 'login' ? 'Entre com seu e-mail e senha.' : 'Só precisa de um e-mail e uma senha. O Staff é aberto a qualquer pessoa.'}</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <label className="block">
+                <span className="text-sm text-slate-300">E-mail</span>
+                <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="voce@email.com" />
+              </label>
+              <label className="block">
+                <span className="text-sm text-slate-300">Senha</span>
+                <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required className="mt-1 w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-purple-500" placeholder="Mínimo 6 caracteres" />
+              </label>
+              {mode === 'login' && <button type="button" onClick={startRecovery} className="text-sm text-purple-300 hover:text-purple-200">Esqueci minha senha</button>}
+              <button disabled={loading} className="w-full btn-purple py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : mode === 'login' ? 'Entrar' : 'Criar conta gratuita'}
+              </button>
+            </form>
+            {message && <p className="mt-4 text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">{message}</p>}
+            <button onClick={() => onMode(mode === 'login' ? 'signup' : 'login')} className="w-full mt-5 text-sm text-purple-300 hover:text-purple-200">
+              {mode === 'login' ? 'Ainda não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

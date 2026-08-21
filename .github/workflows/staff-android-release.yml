@@ -1,4 +1,4 @@
-name: Staff Android Release 2.3.2
+name: Staff Android Release 2.3.3
 
 on:
   workflow_dispatch:
@@ -55,6 +55,14 @@ jobs:
           fi
           echo "Nenhum bloqueio de acesso Nexa encontrado."
 
+      - name: Verify recovery flow source
+        run: |
+          grep -q "resetPasswordForEmail" src/lib/supabase.ts
+          grep -q "Esqueci minha senha" src/components/staff/AuthLanding.tsx
+          grep -q "PASSWORD_RECOVERY" src/AppV2.tsx
+          grep -q "Excluir minha conta em vez disso" src/components/staff/PasswordRecovery.tsx
+          echo "Fluxo de recuperação e exclusão verificada presente."
+
       - name: Validate Supabase configuration
         env:
           VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
@@ -101,8 +109,8 @@ jobs:
 
       - name: Set Android version
         run: |
-          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 28/' android/app/build.gradle
-          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.2"/' android/app/build.gradle
+          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 29/' android/app/build.gradle
+          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.3"/' android/app/build.gradle
 
       - name: Verify Android voice permission
         run: |
@@ -143,7 +151,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: staff-android-debug-2.3.2
+          name: staff-android-debug-2.3.3
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -152,7 +160,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: staff-google-play-release-2.3.2
+          name: staff-google-play-release-2.3.3
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30

@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
 const supabaseKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+const passwordRecoveryRedirect = 'https://app.smartbots.club/?staff_recovery=1'
 
 function isValidSupabaseConfiguration(): boolean {
   if (!supabaseUrl || !supabaseKey) return false
@@ -38,6 +39,10 @@ function normalizeAuthError(error: unknown): Error {
     return new Error('Este e-mail já possui uma conta. Faça login.')
   }
 
+  if (/redirect.*not.*allowed|redirect_to/i.test(message)) {
+    return new Error('O link de recuperação ainda não está autorizado no servidor do Staff.')
+  }
+
   return error instanceof Error ? error : new Error(message || 'Não foi possível concluir a autenticação.')
 }
 
@@ -49,7 +54,7 @@ if (supabaseConfigured) {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
     },
   })
 } else {
@@ -121,6 +126,33 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+export async function requestPasswordReset(email: string) {
+  assertSupabaseConfigured()
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!normalizedEmail) throw new Error('Informe seu e-mail.')
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: passwordRecoveryRedirect,
+    })
+    if (error) throw error
+  } catch (error) {
+    throw normalizeAuthError(error)
+  }
+}
+
+export async function updatePassword(password: string) {
+  assertSupabaseConfigured()
+  if (password.length < 6) throw new Error('A nova senha deve ter pelo menos 6 caracteres.')
+  try {
+    const { data, error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    return data
+  } catch (error) {
+    throw normalizeAuthError(error)
+  }
+}
+
 export async function signOut() {
   assertSupabaseConfigured()
   const { error } = await supabase.auth.signOut()
@@ -139,12 +171,12 @@ export async function getSession() {
   return session
 }
 
-export function onAuthStateChange(callback: (user: any) => void) {
+export function onAuthStateChange(callback: (user: any, event?: string) => void) {
   if (!supabaseConfigured) {
-    callback(null)
+    callback(null, 'SIGNED_OUT')
     return { data: { subscription: { unsubscribe() {} } } }
   }
-  return supabase.auth.onAuthStateChange((_event, session) => callback(session?.user || null))
+  return supabase.auth.onAuthStateChange((event, session) => callback(session?.user || null, event))
 }
 
 // Legacy helpers kept for backwards compatibility with older Staff data.
