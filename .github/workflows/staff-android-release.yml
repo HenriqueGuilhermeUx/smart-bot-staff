@@ -74,14 +74,11 @@ jobs:
             echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY."
             exit 1
           fi
-
           node -e "const u = new URL(process.env.VITE_SUPABASE_URL); if (u.protocol !== 'https:') process.exit(1); console.log('Supabase host:', u.hostname)"
-
           curl --fail --silent --show-error --max-time 20 \
             "$VITE_SUPABASE_URL/auth/v1/settings" \
             -H "apikey: $PUBLIC_KEY" \
             >/dev/null
-
           echo "Supabase URL, DNS e Auth endpoint validados."
 
       - name: Build web application
@@ -123,7 +120,6 @@ jobs:
           ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
 
       - name: Sign release AAB
-        if: github.event_name != 'pull_request'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -134,9 +130,7 @@ jobs:
             echo "::error::Cadastre os quatro secrets de assinatura Android."
             exit 1
           fi
-
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > staff-upload-key.jks
-
           jarsigner \
             -keystore staff-upload-key.jks \
             -storepass "$ANDROID_KEYSTORE_PASSWORD" \
@@ -145,7 +139,6 @@ jobs:
             -digestalg SHA-256 \
             android/app/build/outputs/bundle/release/app-release.aab \
             "$ANDROID_KEY_ALIAS"
-
           jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload debug APK
@@ -157,7 +150,6 @@ jobs:
           retention-days: 14
 
       - name: Upload signed Google Play AAB
-        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: staff-google-play-release-2.3.3
