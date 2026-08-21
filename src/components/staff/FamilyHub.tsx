@@ -58,9 +58,7 @@ export function FamilyHub({ user }: { user: any }) {
     } catch (reason: any) {
       console.error('Staff Family load error:', reason)
       const raw = String(reason?.message || reason || '')
-      setError(/staff_children|does not exist|schema cache|PGRST205/i.test(raw)
-        ? 'O módulo Família precisa do SQL de ativação no Supabase: 20260819_staff_family_studies_v1.sql.'
-        : raw || 'Não consegui carregar o módulo Família.')
+      setError(raw || 'Não consegui carregar o módulo Família. Saia e entre novamente; se persistir, tente atualizar a tela em alguns instantes.')
     } finally {
       setLoading(false)
     }
