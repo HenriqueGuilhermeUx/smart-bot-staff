@@ -1,0 +1,58 @@
+name: Staff Netlify Bundle 2.4.0
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build web application
+        env:
+          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Package deploy source
+        run: |
+          mkdir -p deploy/netlify
+          cp -a dist deploy/dist
+          cp -a netlify/functions deploy/netlify/functions
+          cp package.json package-lock.json deploy/
+          cat > deploy/netlify.toml <<'EOF'
+          [build]
+            command = "echo Using prebuilt Staff 2.4.0"
+            publish = "dist"
+            functions = "netlify/functions"
+
+          [build.environment]
+            NODE_VERSION = "22"
+
+          [functions]
+            node_bundler = "esbuild"
+          EOF
+
+      - name: Upload Netlify deploy bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: staff-netlify-deploy-2.4.0
+          path: deploy
+          if-no-files-found: error
+          retention-days: 7
