@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  STAFF_SUPABASE_PROJECT_REF: mkwkljnfaqszvcjzhajn
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -83,7 +86,6 @@ jobs:
 
       - name: Validate Supabase configuration
         env:
-          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: |
@@ -92,6 +94,9 @@ jobs:
             echo "::error::Cadastre VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY."
             exit 1
           fi
+
+          export VITE_SUPABASE_URL="https://${STAFF_SUPABASE_PROJECT_REF}.supabase.co"
+          echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" >> "$GITHUB_ENV"
 
           node -e "const u = new URL(process.env.VITE_SUPABASE_URL); if (u.protocol !== 'https:') process.exit(1); console.log('Supabase host:', u.hostname)"
 
@@ -104,7 +109,6 @@ jobs:
 
       - name: Build web application
         env:
-          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
