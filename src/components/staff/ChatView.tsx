@@ -48,7 +48,7 @@ function navigationLabel(screen: StaffScreen) {
     calendar: 'Agenda',
     chat: 'Conversar',
     tasks: 'Tarefas',
-    smart-inbox: 'Smart Inbox',
+    'smart-inbox': 'Smart Inbox',
     finance: 'Finanças',
     life: 'Áreas da vida',
     family: 'Família',
