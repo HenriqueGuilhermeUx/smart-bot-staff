@@ -3,7 +3,9 @@ import {
   Bell,
   BellOff,
   CalendarDays,
+  CircleDollarSign,
   Home,
+  Inbox,
   LayoutGrid,
   ListTodo,
   Loader2,
@@ -66,6 +68,8 @@ import { AutomationsView } from '@/components/staff/AutomationsView'
 import { MoreView } from '@/components/staff/MoreView'
 import { VoiceButton } from '@/components/staff/VoiceButton'
 import { FamilyHub } from '@/components/staff/FamilyHub'
+import { SmartInboxView } from '@/components/staff/SmartInboxView'
+import { FinanceView } from '@/components/staff/FinanceView'
 
 export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [screen, setScreen] = useState<StaffScreen>('today')
@@ -262,6 +266,8 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
     { id: 'calendar' as StaffScreen, label: 'Agenda', icon: CalendarDays },
     { id: 'chat' as StaffScreen, label: 'Conversar', icon: MessageCircle },
     { id: 'tasks' as StaffScreen, label: 'Tarefas', icon: ListTodo },
+    { id: 'smart-inbox' as StaffScreen, label: 'Smart Inbox', icon: Inbox },
+    { id: 'finance' as StaffScreen, label: 'Finanças', icon: CircleDollarSign },
     { id: 'life' as StaffScreen, label: 'Vida', icon: LayoutGrid },
     { id: 'family' as StaffScreen, label: 'Família', icon: UsersRound },
     { id: 'automations' as StaffScreen, label: 'Automações', icon: Zap },
@@ -276,7 +282,7 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
     { id: 'more' as StaffScreen, label: 'Mais', icon: MoreHorizontal },
   ]
 
-  const mobileActive = ['life', 'family', 'automations', 'settings', 'more'].includes(screen) ? 'more' : screen
+  const mobileActive = ['life', 'family', 'smart-inbox', 'finance', 'automations', 'settings', 'more'].includes(screen) ? 'more' : screen
   const unreadCount = notifications.filter((item) => !item.read_at).length
 
   if (loading) {
@@ -321,8 +327,8 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
           ))}
         </nav>
         <div className="mt-5 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
-          <p className="text-xs font-semibold text-purple-200">Voz + Família</p>
-          <p className="text-[11px] text-slate-500 mt-1">Organize o dia por voz e acompanhe estudos e desafios dos filhos.</p>
+          <p className="text-xs font-semibold text-purple-200">Mostre algo ao Staff</p>
+          <p className="text-[11px] text-slate-500 mt-1">Smart Inbox transforma documentos em memória, finanças e lembretes após sua confirmação.</p>
         </div>
       </aside>
 
@@ -353,6 +359,8 @@ export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => 
               }}
             />
           )}
+          {screen === 'smart-inbox' && <SmartInboxView userId={user.id} onCreateTask={handleCreateTask} onCreateEvent={handleCreateEvent} onNavigate={navigate} />}
+          {screen === 'finance' && <FinanceView userId={user.id} />}
           {screen === 'life' && <LifeView onOpenChat={openLifeChat} />}
           {screen === 'family' && <FamilyHub user={user} />}
           {screen === 'automations' && (

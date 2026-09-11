@@ -32,44 +32,76 @@ export default async (request: Request) => {
   const { data: userData, error: userError } = await admin.auth.getUser(token)
   if (userError || !userData.user) return json({ error: 'Sessão inválida ou expirada.' }, 401)
   const userId = userData.user.id
-
   const cleanupErrors: string[] = []
-  const { data: studyRows, error: studyListError } = await admin.from('staff_study_materials').select('file_path').eq('user_id', userId)
 
-  if (studyListError && !isMissingRelation(studyListError)) {
-    console.error('delete-account list study files:', studyListError)
-    cleanupErrors.push('staff-study-materials-storage')
-  } else {
-    const paths = (studyRows || []).map((row: any) => row.file_path).filter(Boolean)
-    if (paths.length) {
-      const { error: storageError } = await admin.storage.from('staff-study-materials').remove(paths)
-      if (storageError) {
-        console.error('delete-account study storage:', storageError)
-        cleanupErrors.push('staff-study-materials-storage')
+  async function removePrivateFiles(table: string, bucket: string, label: string) {
+    const { data: rows, error: listError } = await admin.from(table).select('file_path').eq('user_id', userId)
+    if (listError) {
+      if (!isMissingRelation(listError)) {
+        console.error(`delete-account list ${label}:`, listError.code || 'list_error')
+        cleanupErrors.push(label)
       }
+      return
+    }
+    const paths = (rows || []).map((row: any) => row.file_path).filter(Boolean)
+    if (!paths.length) return
+    const { error: storageError } = await admin.storage.from(bucket).remove(paths)
+    if (storageError) {
+      console.error(`delete-account storage ${label}:`, storageError.message)
+      cleanupErrors.push(label)
     }
   }
 
-  const { data: staffUser } = await admin.from('staff_users').select('id').eq('user_id', userId).maybeSingle()
+  // Arquivos privados são removidos antes dos registros que contêm seus caminhos.
+  await removePrivateFiles('staff_study_materials', 'staff-study-materials', 'staff-study-materials-storage')
+  await removePrivateFiles('staff_documents', 'staff-documents', 'staff-documents-storage')
+
+  const { data: staffUser } = await admin
+    .from('staff_users')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
   if (staffUser?.id) {
     const { error } = await admin.from('staff_history').delete().eq('user_id', staffUser.id)
     if (error && !isMissingRelation(error)) {
-      console.error('delete-account staff_history:', error)
+      console.error('delete-account staff_history:', error.code || 'delete_error')
       cleanupErrors.push('staff_history')
     }
   }
 
   const tables = [
-    'staff_study_attempts', 'staff_kids_game_sessions', 'staff_study_materials', 'staff_children',
-    'staff_event_reminders', 'staff_event_recurrences', 'staff_automation_runs', 'staff_action_queue',
-    'staff_notifications', 'staff_events', 'staff_automations', 'staff_messages', 'staff_memories',
-    'staff_tasks', 'staff_notification_preferences', 'staff_profiles', 'staff_users',
+    // Smart Inbox: dependências antes do documento.
+    'staff_document_actions',
+    'staff_document_links',
+    'staff_financial_entries',
+    'staff_telemetry_events',
+    'staff_documents',
+    // Família / Estudos.
+    'staff_study_attempts',
+    'staff_kids_game_sessions',
+    'staff_study_materials',
+    'staff_children',
+    // Agenda, automações e core.
+    'staff_event_reminders',
+    'staff_event_recurrences',
+    'staff_automation_runs',
+    'staff_action_queue',
+    'staff_notifications',
+    'staff_events',
+    'staff_automations',
+    'staff_messages',
+    'staff_memories',
+    'staff_tasks',
+    'staff_notification_preferences',
+    'staff_profiles',
+    'staff_users',
   ]
 
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq('user_id', userId)
     if (error && !isMissingRelation(error)) {
-      console.error(`delete-account ${table}:`, error)
+      console.error(`delete-account ${table}:`, error.code || 'delete_error')
       cleanupErrors.push(table)
     }
   }
@@ -80,7 +112,7 @@ export default async (request: Request) => {
 
   const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId)
   if (deleteUserError) {
-    console.error('delete-account auth user:', deleteUserError)
+    console.error('delete-account auth user:', deleteUserError.message)
     return json({ error: 'Não foi possível excluir a conta de autenticação.' }, 500)
   }
 

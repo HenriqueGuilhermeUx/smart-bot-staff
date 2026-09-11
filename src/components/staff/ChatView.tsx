@@ -20,6 +20,8 @@ function navigationFromCommand(text: string): StaffScreen | null {
   const value = normalizeCommand(text)
   const wantsNavigation = /^(abra|abrir|mostre|mostrar|va para|ir para|quero ver|acesse|acessar)/.test(value)
   if (!wantsNavigation) return null
+  if (/(smart inbox|caixa de entrada|documentos enviados|meus documentos)/.test(value)) return 'smart-inbox'
+  if (/(financas|financeiro|despesas|gastos|lancamentos)/.test(value)) return 'finance'
   if (/(agenda|calendario|compromissos)/.test(value)) return 'calendar'
   if (/(tarefas|lembretes|pendencias)/.test(value)) return 'tasks'
   if (/(familia|filhos|desafios kids|estudos dos filhos|estudos infantis)/.test(value)) return 'family'
@@ -31,12 +33,23 @@ function navigationFromCommand(text: string): StaffScreen | null {
   return null
 }
 
+function smartInboxVoiceIntent(text: string) {
+  const value = normalizeCommand(text)
+  return /(lanca|lancar|registra|registrar).*(essa|esta).*(nota|recibo|comprovante)/.test(value)
+    || /(guarda|guardar|salva|salvar).*(esse|este).*(contrato|documento|recibo|boleto)/.test(value)
+    || /(quando vence).*(isso|esse|este|documento|boleto|contrato|garantia)/.test(value)
+    || /(quanto (eu )?paguei).*(produto|isso|nisso)/.test(value)
+    || /(me lembra|me lembre).*(garantia|documento|boleto|contrato).*(vencer|vence|vencimento)/.test(value)
+}
+
 function navigationLabel(screen: StaffScreen) {
   const labels: Partial<Record<StaffScreen, string>> = {
     today: 'Hoje',
     calendar: 'Agenda',
     chat: 'Conversar',
     tasks: 'Tarefas',
+    'smart-inbox': 'Smart Inbox',
+    finance: 'Finanças',
     life: 'Áreas da vida',
     family: 'Família',
     automations: 'Automações',
@@ -110,6 +123,12 @@ export function ChatView({
         const content = `Abrindo ${navigationLabel(navigation)}.`
         await answer(currentMessages, content, fromVoice)
         onNavigate(navigation)
+        return
+      }
+
+      if (smartInboxVoiceIntent(text)) {
+        await answer(currentMessages, 'Abrindo o Smart Inbox. Mostre ou escolha o documento; eu vou extrair os dados e você confirma antes de eu registrar despesa, criar lembrete ou executar outra ação.', fromVoice)
+        onNavigate('smart-inbox')
         return
       }
 
@@ -196,10 +215,9 @@ export function ChatView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: user.id,
           message: text,
           thread_id: 'main',
-          nexaToken: localStorage.getItem('nexaToken') || '',
+          conversation_history: currentMessages.slice(-10).map((item) => ({ role: item.role, content: item.content })),
           context: {
             pending_tasks: tasks.filter((task) => task.status === 'pending').slice(0, 12),
             upcoming_events: events.filter((item) => item.status === 'scheduled' && new Date(item.start_at) >= new Date()).slice(0, 12),
@@ -237,11 +255,11 @@ export function ChatView({
           <div className="h-full min-h-[340px] flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-2xl bg-purple-500/15 flex items-center justify-center mb-4"><Sparkles className="w-8 h-8 text-purple-300" /></div>
             <h2 className="text-xl font-bold text-white">Como posso ajudar?</h2>
-            <p className="text-slate-500 max-w-md mt-2">Fale ou digite para criar compromissos, tarefas, automações e consultar seu dia.</p>
+            <p className="text-slate-500 max-w-md mt-2">Fale ou digite para criar compromissos, tarefas, analisar documentos, consultar finanças e organizar sua vida.</p>
             <div className="flex flex-wrap justify-center gap-2 mt-5">
               {[
+                'Abra o Smart Inbox',
                 'Agende reunião amanhã às 10h e me avise 30 minutos antes',
-                'Abra Família',
                 'O que eu tenho hoje?',
               ].map((suggestion) => (
                 <button key={suggestion} onClick={() => setInput(suggestion)} className="px-3 py-2 rounded-full bg-slate-900 border border-slate-800 text-sm text-slate-400 hover:text-purple-200">{suggestion}</button>
@@ -269,7 +287,7 @@ export function ChatView({
       </div>
       <form onSubmit={submit} className="mt-3 glass-card p-2 flex gap-2">
         <MessageCircle className="w-5 h-5 text-slate-600 self-center ml-2 hidden sm:block" />
-        <input value={input} onChange={(event) => setInput(event.target.value)} disabled={loading} className="flex-1 px-2 bg-transparent text-white outline-none min-w-0" placeholder="Fale ou digite: Agende consulta amanhã às 14h..." />
+        <input value={input} onChange={(event) => setInput(event.target.value)} disabled={loading} className="flex-1 px-2 bg-transparent text-white outline-none min-w-0" placeholder="Fale ou digite: lança essa nota, agende consulta..." />
         <VoiceButton disabled={loading} onTranscript={(text) => processText(text, true)} />
         <button disabled={!input.trim() || loading} className="btn-purple w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>
