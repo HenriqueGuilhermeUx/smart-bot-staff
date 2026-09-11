@@ -116,7 +116,7 @@ export class InternalAIProvider implements DocumentExtractionProvider {
 
     const fileContent = input.mimeType.startsWith('image/')
       ? { type: 'input_image', image_url: `data:${input.mimeType};base64,${input.fileBase64}`, detail: 'high' }
-      : { type: 'input_file', filename: input.fileName, file_data: `data:${input.mimeType};base64,${input.fileBase64}` }
+      : { type: 'input_file', filename: input.fileName, file_data: input.fileBase64 }
 
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
