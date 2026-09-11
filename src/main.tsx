@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { installStaffNativeApiBridge } from './lib/staffApi.ts'
 import './index.css'
 import './family.css'
+import './smart-inbox.css'
 import AppV2 from './AppV2.tsx'
 
 installStaffNativeApiBridge()
