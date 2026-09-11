@@ -130,18 +130,20 @@ export function buildDocumentFingerprint(document, fileHash = '') {
   const amount = normalized.totalAmount === null ? '' : normalized.totalAmount.toFixed(2)
   const date = normalized.issueDate || normalized.dueDate || ''
   const documentNumber = cleanFingerprintPart(normalized.documentNumber)
-  const fallbackHash = cleanFingerprintPart(fileHash).slice(0, 64)
+  const normalizedFileHash = cleanFingerprintPart(fileHash).slice(0, 64)
 
-  // Evita falso positivo quando a IA reconhece apenas um emissor genérico.
-  // Preferimos identidade comercial quando há número do documento OU a combinação
-  // emissor + valor + data. Fora disso, usamos o hash exato do arquivo.
-  const hasStrongDocumentNumber = Boolean(documentNumber && (issuer || amount || date))
-  const hasTransactionIdentity = Boolean(issuer && amount && date)
-  const businessBasis = hasStrongDocumentNumber || hasTransactionIdentity
-    ? [issuer, amount, date, documentNumber].join('|')
-    : ''
-  const basis = businessBasis || (fallbackHash ? `file|${fallbackHash}` : '')
-  return basis ? `v2:${fnv1a64(basis)}` : null
+  // Regra de deduplicação do Staff:
+  // emissor + valor + data + número do documento quando o número existe;
+  // na ausência do número, usa o hash do arquivo como componente de identidade.
+  // Isso evita marcar como duplicadas duas compras legítimas de mesmo valor no mesmo local/dia.
+  let basis = ''
+  if (documentNumber && (issuer || amount || date)) {
+    basis = [issuer, amount, date, `doc:${documentNumber}`].join('|')
+  } else if (normalizedFileHash) {
+    basis = [issuer, amount, date, `file:${normalizedFileHash}`].join('|')
+  }
+
+  return basis ? `v3:${fnv1a64(basis)}` : null
 }
 
 export function confidenceBand(value) {
