@@ -55,7 +55,7 @@ jobs:
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
           npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
 
-      - name: Verify Smart Inbox source and migration
+      - name: Verify Smart Inbox source and migrations
         run: |
           grep -q "interface DocumentExtractionProvider" netlify/functions/_shared/document-providers.mts
           grep -q "InternalAIProvider" netlify/functions/_shared/document-providers.mts
@@ -64,9 +64,11 @@ jobs:
           grep -q "staff_documents" supabase/migrations/20260910_staff_smart_inbox_v1.sql
           grep -q "staff_financial_entries" supabase/migrations/20260910_staff_smart_inbox_v1.sql
           grep -q "staff-documents" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "staff_document_actions_insert_own" supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
+          grep -q "staff_memories_insert_own" supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
           grep -q "SENSITIVE_EXTERNAL_PROCESSING_DISABLED" netlify/functions/staff-document-analyze.mts
           grep -q "Fonte documental" netlify/functions/staff-chat-v2.js
-          echo "Smart Inbox backend, privacidade e memória documental presentes."
+          echo "Smart Inbox backend, privacidade, ownership e memória documental presentes."
 
       - name: Reject legacy Nexa access gate
         run: |
@@ -187,10 +189,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Staff Smart Inbox migration
+      - name: Upload Staff Smart Inbox migrations
         uses: actions/upload-artifact@v4
         with:
           name: staff-smart-inbox-sql-2.4.0
-          path: supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          path: |
+            supabase/migrations/20260910_staff_smart_inbox_v1.sql
+            supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
           if-no-files-found: error
           retention-days: 30
