@@ -31,24 +31,32 @@ test('normalização não inventa tipo/data e limita confidence', () => {
 })
 
 test('fingerprint é estável para issuer + valor + data + número', () => {
-  const a = buildDocumentFingerprint({ issuer: 'Loja São José', totalAmount: 100, issueDate: '2026-09-10', documentNumber: 'NF-123' })
-  const b = buildDocumentFingerprint({ issuer: 'LOJA SAO JOSE', totalAmount: '100,00', issueDate: '2026-09-10', documentNumber: 'NF 123' })
-  const c = buildDocumentFingerprint({ issuer: 'LOJA SAO JOSE', totalAmount: 100, issueDate: '2026-09-10', documentNumber: 'NF-999' })
+  const a = buildDocumentFingerprint({ issuer: 'Loja São José', totalAmount: 100, issueDate: '2026-09-10', documentNumber: 'NF-123' }, 'arquivo-a')
+  const b = buildDocumentFingerprint({ issuer: 'LOJA SAO JOSE', totalAmount: '100,00', issueDate: '2026-09-10', documentNumber: 'NF 123' }, 'arquivo-b')
+  const c = buildDocumentFingerprint({ issuer: 'LOJA SAO JOSE', totalAmount: 100, issueDate: '2026-09-10', documentNumber: 'NF-999' }, 'arquivo-a')
   assert.equal(a, b)
   assert.notEqual(a, c)
+  assert.ok(a?.startsWith('v3:'))
 })
 
-test('fingerprint não trata somente emissor como duplicidade', () => {
-  const first = buildDocumentFingerprint({ issuer: 'Mercado XPTO' }, 'aaaaaaaa')
-  const second = buildDocumentFingerprint({ issuer: 'Mercado XPTO' }, 'bbbbbbbb')
+test('sem número, hash participa da identidade e evita falso positivo', () => {
+  const first = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100, issueDate: '2026-09-10' }, 'aaaaaaaa')
+  const second = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100, issueDate: '2026-09-10' }, 'bbbbbbbb')
   assert.notEqual(first, second)
+})
+
+test('mesmo arquivo sem número produz fingerprint estável', () => {
+  const a = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100, issueDate: '2026-09-10' }, 'mesmo-hash')
+  const b = buildDocumentFingerprint({ issuer: 'MERCADO XPTO', totalAmount: '100,00', issueDate: '2026-09-10' }, 'mesmo-hash')
+  assert.equal(a, b)
+  assert.ok(a?.startsWith('v3:'))
 })
 
 test('fingerprint usa hash do arquivo quando identidade comercial é insuficiente', () => {
   const a = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100 }, 'hash-a')
   const b = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100 }, 'hash-b')
   assert.notEqual(a, b)
-  assert.ok(a?.startsWith('v2:'))
+  assert.ok(a?.startsWith('v3:'))
 })
 
 test('telemetria elimina conteúdo e conserva somente chaves agregáveis', () => {
