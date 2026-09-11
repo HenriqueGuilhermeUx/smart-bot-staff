@@ -38,6 +38,19 @@ test('fingerprint é estável para issuer + valor + data + número', () => {
   assert.notEqual(a, c)
 })
 
+test('fingerprint não trata somente emissor como duplicidade', () => {
+  const first = buildDocumentFingerprint({ issuer: 'Mercado XPTO' }, 'aaaaaaaa')
+  const second = buildDocumentFingerprint({ issuer: 'Mercado XPTO' }, 'bbbbbbbb')
+  assert.notEqual(first, second)
+})
+
+test('fingerprint usa hash do arquivo quando identidade comercial é insuficiente', () => {
+  const a = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100 }, 'hash-a')
+  const b = buildDocumentFingerprint({ issuer: 'Mercado XPTO', totalAmount: 100 }, 'hash-b')
+  assert.notEqual(a, b)
+  assert.ok(a?.startsWith('v2:'))
+})
+
 test('telemetria elimina conteúdo e conserva somente chaves agregáveis', () => {
   const sanitized = sanitizeTelemetryProperties({
     document_type: 'BILL',
