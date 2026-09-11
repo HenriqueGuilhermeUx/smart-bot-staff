@@ -126,16 +126,22 @@ function fnv1a64(value) {
 
 export function buildDocumentFingerprint(document, fileHash = '') {
   const normalized = normalizeDocumentExtraction(document)
-  const identity = [
-    cleanFingerprintPart(normalized.issuer),
-    normalized.totalAmount === null ? '' : normalized.totalAmount.toFixed(2),
-    normalized.issueDate || normalized.dueDate || '',
-    cleanFingerprintPart(normalized.documentNumber),
-  ]
-  const hasBusinessIdentity = identity.some(Boolean)
+  const issuer = cleanFingerprintPart(normalized.issuer)
+  const amount = normalized.totalAmount === null ? '' : normalized.totalAmount.toFixed(2)
+  const date = normalized.issueDate || normalized.dueDate || ''
+  const documentNumber = cleanFingerprintPart(normalized.documentNumber)
   const fallbackHash = cleanFingerprintPart(fileHash).slice(0, 64)
-  const basis = hasBusinessIdentity ? identity.join('|') : `file|${fallbackHash}`
-  return basis === 'file|' ? null : `v1:${fnv1a64(basis)}`
+
+  // Evita falso positivo quando a IA reconhece apenas um emissor genérico.
+  // Preferimos identidade comercial quando há número do documento OU a combinação
+  // emissor + valor + data. Fora disso, usamos o hash exato do arquivo.
+  const hasStrongDocumentNumber = Boolean(documentNumber && (issuer || amount || date))
+  const hasTransactionIdentity = Boolean(issuer && amount && date)
+  const businessBasis = hasStrongDocumentNumber || hasTransactionIdentity
+    ? [issuer, amount, date, documentNumber].join('|')
+    : ''
+  const basis = businessBasis || (fallbackHash ? `file|${fallbackHash}` : '')
+  return basis ? `v2:${fnv1a64(basis)}` : null
 }
 
 export function confidenceBand(value) {
