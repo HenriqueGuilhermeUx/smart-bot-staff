@@ -1,4 +1,4 @@
-name: Staff Android Release 2.3.4
+name: Staff Android Release 2.4.0
 
 on:
   workflow_dispatch:
@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Test Smart Inbox core
+        run: npm run test:smart-inbox
+
       - name: Type-check application
         run: npm run typecheck
 
@@ -44,8 +47,23 @@ jobs:
           node --check netlify/functions/staff-chat-v2.js
           node --check functions/staff-study.js
           npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
+          npx esbuild netlify/functions/staff-document-analyze.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-analyze.mjs
+          npx esbuild netlify/functions/_shared/document-providers.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-providers.mjs
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
           npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
+
+      - name: Verify Smart Inbox source and migration
+        run: |
+          grep -q "interface DocumentExtractionProvider" netlify/functions/_shared/document-providers.mts
+          grep -q "InternalAIProvider" netlify/functions/_shared/document-providers.mts
+          grep -q "MockProvider" netlify/functions/_shared/document-providers.mts
+          grep -q "DocStructProvider" netlify/functions/_shared/document-providers.mts
+          grep -q "staff_documents" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "staff_financial_entries" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "staff-documents" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "SENSITIVE_EXTERNAL_PROCESSING_DISABLED" netlify/functions/staff-document-analyze.mts
+          grep -q "Fonte documental" netlify/functions/staff-chat-v2.js
+          echo "Smart Inbox backend, privacidade e memória documental presentes."
 
       - name: Reject legacy Nexa access gate
         run: |
@@ -109,8 +127,8 @@ jobs:
 
       - name: Set Android version
         run: |
-          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 30/' android/app/build.gradle
-          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.3.4"/' android/app/build.gradle
+          sed -i -E 's/versionCode[[:space:]]+[0-9]+/versionCode 31/' android/app/build.gradle
+          sed -i -E 's/versionName[[:space:]]+"[^"]+"/versionName "2.4.0"/' android/app/build.gradle
 
       - name: Verify Android voice permission
         run: |
@@ -151,7 +169,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: staff-android-debug-2.3.4
+          name: staff-android-debug-2.4.0
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -160,15 +178,15 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: staff-google-play-release-2.3.4
+          name: staff-google-play-release-2.4.0
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Staff 2.3 database migration
+      - name: Upload Staff Smart Inbox migration
         uses: actions/upload-artifact@v4
         with:
-          name: staff-family-studies-sql-2.3.0
-          path: supabase/migrations/20260819_staff_family_studies_v1.sql
+          name: staff-smart-inbox-sql-2.4.0
+          path: supabase/migrations/20260910_staff_smart_inbox_v1.sql
           if-no-files-found: error
           retention-days: 30
