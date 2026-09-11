@@ -1,10 +1,8 @@
-# Staff — Google Play Release 2.3.0
+# Staff — Google Play Release
 
 Aplicativo: **Staff: Assistente com IA**  
 Nome no aparelho: **Staff**  
-Package Android: `br.com.alternativeventures.staff`  
-Versão: `2.3.0`  
-Version code: `26`
+Package Android: `br.com.alternativeventures.staff`
 
 ## URLs públicas
 
@@ -14,25 +12,19 @@ Version code: `26`
 
 ## Supabase
 
-Project URL usado pelo Android:
+O Android usa a URL pública do projeto Staff no formato:
 
 ```text
-https://mkwkljnfaqszvcjzhajn.supabase.co
+https://<PROJECT_REF>.supabase.co
 ```
 
-No GitHub Actions, deve existir `VITE_SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_ANON_KEY`. Nunca use service role no frontend ou APK.
+No GitHub Actions, o workflow monta essa URL a partir do project ref público e exige `VITE_SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_ANON_KEY`. Nunca use service role no frontend ou APK.
 
-Para ativar Família, Desafios Kids, Estudos e Progresso, execute no SQL Editor do Supabase:
+As migrations ficam em `supabase/migrations/` e devem ser executadas no projeto Supabase do Staff antes de publicar a capacidade correspondente.
 
-```text
-supabase/migrations/20260819_staff_family_studies_v1.sql
-```
+## Netlify / IA
 
-A migração cria tabelas com RLS e o bucket privado `staff-study-materials`.
-
-## Netlify / Estudos
-
-A função Estudos usa as variáveis de servidor já protegidas:
+As Functions usam variáveis de servidor protegidas:
 
 ```text
 SUPABASE_URL
@@ -40,13 +32,21 @@ SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY)
 OPENAI_API_KEY
 ```
 
-Opcional:
+Modelos opcionais:
 
 ```text
 OPENAI_STUDY_MODEL=gpt-5-mini
+OPENAI_DOCUMENT_MODEL=gpt-5-mini
 ```
 
-A função de análise nunca deve receber uma chave OpenAI no app. O responsável envia o material ao backend autenticado, que chama o provedor de IA.
+Smart Inbox:
+
+```text
+STAFF_DOCUMENT_PROVIDER=internal_ai
+STAFF_ALLOW_SENSITIVE_EXTERNAL_PROCESSING=false
+```
+
+A aplicação cliente nunca recebe chave OpenAI ou service role.
 
 ## Assinatura Android
 
@@ -57,64 +57,32 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-## Como validar a PR
+## Release 2.4.0
 
-A abertura de PR contra `main` executa o workflow `Staff Android Release 2.3.0`, com:
-
-- instalação das dependências;
-- TypeScript;
-- validação do Supabase;
-- build web;
-- geração Android;
-- APK debug;
-- compilação do AAB release sem publicação.
-
-## Como gerar o AAB definitivo
-
-Após merge em `main`:
-
-```text
-Actions → Staff Android Release 2.3.0 → Run workflow → main
-```
+Version code: `31`
 
 Artefatos esperados:
 
-- `staff-android-debug-2.3.0` — APK para teste;
-- `staff-google-play-release-2.3.0` — AAB assinado para Google Play;
-- `staff-family-studies-sql-2.3.0` — migração do banco.
+- `staff-android-debug-2.4.0` — APK para teste;
+- `staff-google-play-release-2.4.0` — AAB assinado para Google Play;
+- `staff-smart-inbox-sql-2.4.0` — migration do Smart Inbox.
 
 Arquivo correto para a Play:
 
 ```text
-staff-google-play-release-2.3.0/app-release.aab
+staff-google-play-release-2.4.0/app-release.aab
 ```
 
-## Escopo 2.3.0
+### Escopo 2.4.0
 
-- correção de voz Android já validada em aparelho real;
-- Staff Família com perfis infantis administrados pelo responsável;
-- Desafios Kids em quatro faixas etárias;
-- TTS para atividades selecionadas;
-- sessões de 5, 10 ou 15 minutos;
-- PIN parental para mais tempo ou saída da sessão;
-- Estudos por foto/PDF;
-- resumo, texto, pontos-chave, perguntas e flashcards;
-- biblioteca por filho;
-- histórico de desafios, estudos e progresso;
-- exclusão de conta atualizada para remover dados e arquivos da Família.
-
-## Testes obrigatórios antes da Play
-
-1. instalar `app-debug.apk` em Android real;
-2. testar login e persistência;
-3. testar voz Android e retorno da interface nativa;
-4. executar a migração e cadastrar um perfil de filho;
-5. criar PIN e completar uma sessão de Desafios Kids;
-6. confirmar bloqueio por PIN no fim da sessão;
-7. fotografar uma página escolar e gerar estudo;
-8. testar PDF;
-9. completar perguntas e validar progresso;
-10. excluir um material;
-11. excluir uma conta descartável e confirmar remoção dos dados e arquivos;
-12. revisar na Play Console Público-alvo e conteúdo e Segurança dos dados para as novas funções familiares;
-13. enviar primeiro para teste interno/fechado.
+- Smart Inbox nativo;
+- câmera/upload privado;
+- classificação e extração estruturada;
+- revisão antes de ações;
+- ledger financeiro do Staff;
+- deduplicação;
+- agenda e lembretes a partir de documentos;
+- memória com fonte documental;
+- proteção reforçada para identidade e saúde;
+- telemetria agregada sem conteúdo documental;
+- manutenção das funções de voz, Família, Desafios Kids, Estudos e recuperação de senha.
