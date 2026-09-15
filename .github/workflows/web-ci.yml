@@ -1,0 +1,19 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+      - name: Bundle NexOffice Staff bridge
+        run: npx esbuild netlify/functions/nexoffice-assistant.mts --bundle --platform=node --format=esm --outfile=/tmp/nexoffice-assistant.mjs
