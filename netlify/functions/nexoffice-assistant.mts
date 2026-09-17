@@ -65,6 +65,8 @@ export default async (request: Request) => {
       service: 'staff-nexoffice-assistant',
       privacyMode: 'workspace_context_only',
       personalMemoryAccess: false,
+      externalActions: false,
+      capabilities: ['conversation', 'context_reasoning', 'next_step_structuring'],
     })
   }
 
@@ -126,6 +128,7 @@ export default async (request: Request) => {
       correlationId: payload.correlationId || null,
       privacyMode: 'workspace_context_only',
       personalMemoryAccess: false,
+      externalActions: false,
       usage: result?.usage ? {
         promptTokens: Number(result.usage.prompt_tokens || 0),
         completionTokens: Number(result.usage.completion_tokens || 0),
