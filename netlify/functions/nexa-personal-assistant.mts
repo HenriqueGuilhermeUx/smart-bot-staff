@@ -21,7 +21,7 @@ type NexaContext = {
 
 type NexaAssistantPayload = {
   mode?: string
-  user?: { id?: string; displayName?: string }
+  user?: { id?: string; displayName?: string; email?: string }
   message?: string
   conversationHistory?: Array<{ role?: string; content?: string }>
   context?: NexaContext
@@ -41,6 +41,14 @@ const json = (body: unknown, status = 200) =>
     },
   })
 
+function env(name: string) {
+  try {
+    return String(Netlify.env.get(name) || '').trim()
+  } catch {
+    return String(process.env[name] || '').trim()
+  }
+}
+
 function bearer(request: Request) {
   const auth = request.headers.get('authorization') || ''
   return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : ''
@@ -49,7 +57,7 @@ function bearer(request: Request) {
 function safeHistory(value: NexaAssistantPayload['conversationHistory']) {
   if (!Array.isArray(value)) return []
   return value
-    .slice(-10)
+    .slice(-12)
     .filter((item) => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string')
     .map((item) => ({
       role: item.role as 'user' | 'assistant',
@@ -91,7 +99,7 @@ function compactFinancialContext(value: NexaContext['financial']) {
 }
 
 export default async (request: Request) => {
-  const secret = String(process.env.STAFF_NEXA_SERVICE_KEY || '').trim()
+  const secret = env('STAFF_NEXA_SERVICE_KEY')
   if (!secret) return json({ error: 'nexa_bridge_not_configured' }, 503)
 
   const supplied = bearer(request)
@@ -105,14 +113,26 @@ export default async (request: Request) => {
       ok: true,
       status: 'connected',
       service: 'nexa-personal-assistant',
-      bridgeVersion: 'nexa-personal-v1',
+      bridgeVersion: 'nexa-personal-v2',
       brandSurface: 'nexa',
       engine: 'staff',
-      memoryMode: 'not_connected',
+      memoryMode: 'progressive_federation',
       financialContext: 'read_only',
       paymentPreparation: true,
       paymentExecution: false,
-      capabilities: ['conversation', 'financial_context_reasoning', 'next_step_structuring'],
+      capabilities: [
+        'conversation',
+        'voice_ready',
+        'life_support',
+        'daily_planning',
+        'priorities',
+        'goals',
+        'family_support',
+        'study_support',
+        'work_support',
+        'financial_context_reasoning',
+        'next_step_structuring',
+      ],
     })
   }
 
@@ -155,18 +175,14 @@ export default async (request: Request) => {
     return json({ error: 'unsupported_scope' }, 403)
   }
 
-  const openaiKey = String(process.env.OPENAI_API_KEY || '').trim()
+  const openaiKey = env('OPENAI_API_KEY')
   if (!openaiKey) return json({ error: 'openai_not_configured' }, 503)
-  const model = String(
-    process.env.OPENAI_STAFF_NEXA_MODEL ||
-    process.env.OPENAI_STAFF_MODEL ||
-    'gpt-4o-mini',
-  )
+  const model = env('OPENAI_STAFF_NEXA_MODEL') || env('OPENAI_STAFF_MODEL') || 'gpt-4o-mini'
 
   const financial = compactFinancialContext(payload.context?.financial)
   const displayName = String(payload.user?.displayName || '').trim().slice(0, 120) || 'cliente Nexa'
 
-  const system = `Você é o assistente pessoal inteligente integrado ao aplicativo Nexa.\n\nIDENTIDADE DE PRODUTO:\n- Para o usuário, você faz parte da experiência Nexa. Não apresente a marca interna Staff nem diga que o usuário saiu da Nexa.\n- O motor interno pode ser reutilizado de outros produtos da Alternative Ventures, mas isso não deve criar fricção ou login adicional.\n\nUSUÁRIO: ${displayName}.\n\nCONTEXTO FINANCEIRO AUTORIZADO DA NEXA (somente leitura):\n${JSON.stringify(financial)}\n\nREGRAS DE SEGURANÇA:\n- Você pode explicar saldos e movimentações, ajudar a organizar o dia, estruturar lembretes e sugerir próximos passos.\n- Você pode PREPARAR a intenção de um pagamento, Pix, transferência, compra ou venda, mas nunca afirmar que executou uma movimentação.\n- Toda execução financeira pertence ao core Nexa e exige confirmação própria na interface.\n- Não invente saldo, transação, compromisso, memória ou documento.\n- Se o contexto não trouxer um dado, diga claramente que ele não está disponível.\n- Não exponha IDs internos, metadados de provider ou referências técnicas.\n- Não use dados financeiros para publicidade, persuasão comercial ou segmentação nesta conversa.\n- Responda em português brasileiro, de forma útil, direta e natural.\n\nESTADO DE CAPABILITIES:\n- conversa e raciocínio financeiro: disponíveis;\n- memória pessoal persistente/agenda/Smart Inbox via federation: em integração progressiva; não finja que persistiu algo enquanto memoryMode estiver not_connected;\n- execução financeira por IA: proibida.`
+  const system = `Você é o Assistente Nexa, um assistente pessoal inteligente para a vida cotidiana integrado ao aplicativo Nexa. O motor interno reutiliza capacidades do Staff, mas para o usuário você faz parte da Nexa.\n\nUSUÁRIO: ${displayName}.\n\nMISSÃO:\n- Ajudar a pessoa no dia a dia, não apenas com dinheiro.\n- Apoiar rotina, prioridades, planejamento do dia e da semana, tarefas, estudos, família, casa, trabalho, metas, viagens, documentos comuns, organização pessoal e tomada de decisões cotidianas.\n- Quando houver contexto financeiro autorizado, conectar dinheiro e vida de forma útil: compromissos, orçamento, próximos pagamentos e organização financeira.\n- Ser uma interface simples para futuras capacidades de agenda, lembretes, Smart Inbox e automações.\n\nCONTEXTO FINANCEIRO AUTORIZADO DA NEXA (somente leitura):\n${JSON.stringify(financial)}\n\nREGRAS DE VERACIDADE E PRIVACIDADE:\n- Não invente saldo, transação, compromisso, memória, documento, tarefa ou evento.\n- Se uma informação pessoal não estiver no contexto, diga que ainda não a conhece e ajude mesmo assim com orientação geral.\n- Memória persistente, agenda e Smart Inbox estão em federação progressiva. Não afirme que salvou, agendou ou lembrou algo enquanto a ação não tiver confirmação explícita do sistema.\n- Nunca exponha IDs internos, metadados de provider, referências técnicas ou arquitetura interna.\n- Não use dados financeiros, conversas, voz, família, saúde ou documentos para publicidade ou segmentação.\n\nSEGURANÇA FINANCEIRA:\n- Você pode explicar saldos e movimentações e PREPARAR a intenção de um pagamento, Pix, transferência, compra ou venda.\n- Nunca afirme que executou uma movimentação financeira. Toda execução pertence ao core Nexa e exige confirmação própria na interface.\n\nESTILO:\n- Português brasileiro.\n- Natural, acolhedor sem ser excessivamente informal.\n- Direto, prático e útil.\n- Quando a pessoa pedir ajuda para organizar algo, ofereça um plano simples e acionável.\n- Quando fizer sentido, conecte contexto de vida + contexto financeiro, sem transformar toda conversa em assunto de dinheiro.`
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -190,7 +206,11 @@ export default async (request: Request) => {
 
     const result = await response.json().catch(() => ({}))
     if (!response.ok) {
-      console.error('nexa-personal-assistant OpenAI error', response.status)
+      console.error(
+        'nexa-personal-assistant provider error',
+        response.status,
+        String(result?.error?.code || result?.error?.type || 'unknown').slice(0, 80),
+      )
       return json({ error: 'assistant_provider_failed' }, 502)
     }
 
@@ -200,13 +220,20 @@ export default async (request: Request) => {
     return json({
       ok: true,
       response: content,
-      bridgeVersion: 'nexa-personal-v1',
+      bridgeVersion: 'nexa-personal-v2',
       brandSurface: 'nexa',
       engine: 'staff',
-      memoryMode: 'not_connected',
+      memoryMode: 'progressive_federation',
       financialContext: 'read_only',
       paymentPreparation: true,
       paymentExecution: false,
+      capabilities: [
+        'conversation',
+        'voice_ready',
+        'life_support',
+        'daily_planning',
+        'financial_context_reasoning',
+      ],
       usage: result?.usage ? {
         promptTokens: Number(result.usage.prompt_tokens || 0),
         completionTokens: Number(result.usage.completion_tokens || 0),
