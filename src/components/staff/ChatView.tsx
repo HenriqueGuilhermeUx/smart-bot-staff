@@ -199,7 +199,7 @@ export function ChatView({
       setPendingBrowserAction({
         actionId: result.actionId || '',
         mode: 'clarification',
-        originalRequest: String(result.result?.originalRequest || ''),
+        originalRequest: result.originalRequest || '',
       })
       await answer(
         currentMessages,
