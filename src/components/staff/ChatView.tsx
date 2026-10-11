@@ -31,8 +31,9 @@ function wait(ms: number) {
 
 type PendingBrowserAction = {
   actionId: string
-  mode: 'alternative_time' | 'running'
+  mode: 'alternative_time' | 'clarification' | 'running'
   alternatives?: string[]
+  originalRequest?: string
 }
 
 function navigationFromCommand(text: string): StaffScreen | null {
@@ -194,13 +195,33 @@ export function ChatView({
       return
     }
 
-    if (result.status === 'needs_confirmation') {
+    if (result.status === 'needs_confirmation' && result.confirmationKind === 'clarification') {
+      setPendingBrowserAction({
+        actionId: result.actionId || '',
+        mode: 'clarification',
+        originalRequest: String(result.result?.originalRequest || ''),
+      })
+      await answer(
+        currentMessages,
+        result.response || 'Preciso de mais alguns dados para continuar a reserva. Pode me responder normalmente.',
+        fromVoice,
+      )
+      return
+    }
+
+    if (result.status === 'needs_confirmation' && result.confirmationKind === 'manual_takeover') {
       setPendingBrowserAction(null)
       await answer(
         currentMessages,
-        `${result.response || 'Cheguei a uma etapa que precisa de você.'}\n\nEu parei antes de pagamento, login, OTP, cartão ou outro passo sensível.`,
+        `${result.response || 'Cheguei a uma etapa que precisa de você.'}\n\nParei antes de pagamento, login, OTP, cartão ou outro passo sensível.`,
         fromVoice,
       )
+      return
+    }
+
+    if (result.status === 'needs_confirmation') {
+      setPendingBrowserAction(null)
+      await answer(currentMessages, result.response || 'Preciso da sua confirmação para continuar.', fromVoice)
       return
     }
 
@@ -282,6 +303,16 @@ export function ChatView({
         setLoadingLabel('Agindo na web: verificando o andamento...')
         const result = await pollBrowserAction(pendingBrowserAction.actionId)
         await finishBrowserAction(result, currentMessages, fromVoice)
+        return
+      }
+
+      if (pendingBrowserAction?.mode === 'clarification') {
+        const previous = pendingBrowserAction.originalRequest?.trim()
+        setPendingBrowserAction(null)
+        const combinedRequest = previous
+          ? `${previous}\nComplemento do usuário: ${text}`
+          : `Continue a reserva anterior com estas informações do usuário: ${text}`
+        await runBrowserReservation(combinedRequest, currentMessages, fromVoice)
         return
       }
 
