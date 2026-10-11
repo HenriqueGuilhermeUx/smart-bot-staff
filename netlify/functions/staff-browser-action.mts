@@ -403,20 +403,37 @@ async function cancelRun(runId: string | null) {
   }
 }
 
-async function cleanupBrowserSession(sessionId: string | null) {
-  if (!sessionId) return
+async function cleanupBrowserSession(agentSessionId: string | null) {
+  if (!agentSessionId) return
+
   try {
-    await browserRequest(`/browsers/${encodeURIComponent(sessionId)}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ action: 'stop' }),
+    const params = new URLSearchParams({
+      agentSessionId,
+      filterBy: 'active',
+      pageSize: '5',
+      pageNumber: '1',
     })
+    const browsers = await browserRequest(`/browsers?${params.toString()}`)
+    const items = Array.isArray(browsers?.items) ? browsers.items : []
+    for (const browser of items) {
+      if (!browser?.id) continue
+      try {
+        await browserRequest(`/browsers/${encodeURIComponent(String(browser.id))}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ action: 'stop' }),
+        })
+      } catch {
+        // Another cleanup may already have stopped it.
+      }
+    }
   } catch {
-    // Hosted runs may already have stopped the browser.
+    // Best effort; deleting the agent session still cancels active work.
   }
+
   try {
-    await browserRequest(`/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
+    await browserRequest(`/sessions/${encodeURIComponent(agentSessionId)}`, { method: 'DELETE' })
   } catch {
-    // Best effort archive after stopping browser billing.
+    // Session may already be terminal/archived.
   }
 }
 
