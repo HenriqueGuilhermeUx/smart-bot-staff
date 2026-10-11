@@ -477,19 +477,36 @@ export default async (request: Request) => {
         })
       }
 
+      const active = await findActiveAction(auth.supabaseUrl, auth.serviceKey, userId)
+      if (active?.id) {
+        return json(409, {
+          code: 'WEB_ACTION_ALREADY_RUNNING',
+          actionId: active.id,
+          status: 'running',
+          error: 'Já existe uma ação web em andamento. Aguarde a conclusão ou cancele antes de iniciar outra.',
+        })
+      }
+
+      if (await dailyActionCount(auth.supabaseUrl, auth.serviceKey, userId) >= DAILY_START_LIMIT) {
+        return json(429, {
+          code: 'WEB_ACTION_DAILY_LIMIT',
+          error: 'O limite diário de ações web desta versão de teste foi atingido.',
+        })
+      }
+
       const action = await insertAction(
         auth.supabaseUrl, auth.serviceKey, userId, requestText,
         'restaurant_reservation', 'low', 'queued',
-        { phase: 'discovery' },
+        { phase: 'discovery', browserApi: 'v4' },
       )
 
       try {
         const external = await startDiscovery(action)
         const updated = await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
           status: 'running',
-          external_task_id: external.taskId,
+          external_task_id: external.runId,
           external_session_id: external.sessionId,
-          result_json: { phase: 'discovery' },
+          result_json: { phase: 'discovery', browserApi: 'v4' },
         })
         return json(202, {
           actionId: updated.id,
@@ -512,8 +529,13 @@ export default async (request: Request) => {
     if (!action) return json(404, { error: 'Ação web não encontrada.' })
 
     if (operation === 'cancel') {
-      await stopSession(action.external_session_id)
-      await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, { status: 'cancelled' })
+      await cancelRun(action.external_task_id)
+      await cleanupBrowserSession(action.external_session_id)
+      await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
+        status: 'cancelled',
+        external_task_id: null,
+        external_session_id: null,
+      })
       return json(200, { actionId: action.id, status: 'cancelled', response: 'A ação web foi cancelada.' })
     }
 
@@ -528,16 +550,16 @@ export default async (request: Request) => {
         return json(409, {
           status: 'needs_profile',
           code: 'RESERVATION_PROFILE_INCOMPLETE',
-          response: 'Complete nome e telefone em Configurações > Dados para reservas.',
+          response: 'Complete nome e telefone em Configurações → Ações na web para eu concluir a reserva.',
         })
       }
 
       const booking = await startBooking(action, discovery, profile, email, selection)
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
         status: 'running',
-        external_task_id: booking.taskId,
+        external_task_id: booking.runId,
         external_session_id: booking.sessionId,
-        result_json: { phase: 'booking', discovery, selectedTime: selection, allowedDomains: booking.allowedDomains },
+        result_json: { phase: 'booking', discovery, selectedTime: selection, bookingHost: booking.bookingHost, browserApi: 'v4' },
       })
       return json(202, {
         actionId: action.id,
