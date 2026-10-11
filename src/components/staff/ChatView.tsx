@@ -400,8 +400,19 @@ export function ChatView({
       })
       const data = await response.json()
       await answer(currentMessages, data.response || 'Entendi. Como você gostaria que eu organizasse isso?', fromVoice)
-    } catch {
-      await answer(currentMessages, 'Tive um problema ao responder agora. Sua mensagem foi salva; tente novamente em instantes.', fromVoice)
+    } catch (error) {
+      if (error instanceof StaffBrowserActionError) {
+        if (error.code === 'RESERVATION_PROFILE_INCOMPLETE') {
+          await answer(currentMessages, 'Encontrei o caminho da reserva, mas antes de concluir salve seu nome e telefone em Configurações → Ações na web.', fromVoice)
+          onNavigate('settings')
+        } else if (error.code === 'BROWSER_USE_NOT_CONFIGURED') {
+          await answer(currentMessages, 'A execução web está pronta no Staff, mas o provedor de navegador ainda não foi ativado neste ambiente.', fromVoice)
+        } else {
+          await answer(currentMessages, error.message, fromVoice)
+        }
+      } else {
+        await answer(currentMessages, 'Tive um problema ao responder agora. Sua mensagem foi salva; tente novamente em instantes.', fromVoice)
+      }
     } finally {
       setLoading(false)
     }
