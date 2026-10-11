@@ -1,4 +1,5 @@
 import { staffFunctionUrl } from '@/lib/staffApi'
+import { supabase } from '@/lib/supabase'
 
 export type BrowserActionStatus =
   | 'running'
@@ -91,4 +92,52 @@ export function continueBrowserAction(actionId: string, selection: string) {
 
 export function cancelBrowserAction(actionId: string) {
   return requestBrowserAction({ operation: 'cancel', actionId })
+}
+
+export type RestoredBrowserAction = {
+  actionId: string
+  mode: 'alternative_time' | 'clarification' | 'running'
+  alternatives?: string[]
+  originalRequest?: string
+}
+
+export async function restorePendingBrowserAction(userId: string): Promise<RestoredBrowserAction | null> {
+  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('staff_web_actions')
+    .select('id,request_text,status,result_json,created_at')
+    .eq('user_id', userId)
+    .in('status', ['needs_confirmation', 'running'])
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data?.id) return null
+
+  if (data.status === 'running') {
+    return { actionId: data.id, mode: 'running' }
+  }
+
+  const resultJson = (data.result_json || {}) as Record<string, any>
+  const kind = String(resultJson.confirmationKind || '')
+  if (kind === 'alternative_time') {
+    const discovery = (resultJson.discovery || {}) as Record<string, any>
+    return {
+      actionId: data.id,
+      mode: 'alternative_time',
+      alternatives: Array.isArray(discovery.alternatives) ? discovery.alternatives.slice(0, 3) : [],
+      originalRequest: String(data.request_text || ''),
+    }
+  }
+
+  if (kind === 'clarification') {
+    return {
+      actionId: data.id,
+      mode: 'clarification',
+      originalRequest: String(data.request_text || ''),
+    }
+  }
+
+  return null
 }
