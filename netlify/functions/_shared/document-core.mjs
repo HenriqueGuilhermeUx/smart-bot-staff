@@ -167,8 +167,11 @@ export function sanitizeTelemetryProperties(properties = {}) {
 
 export function canUseExternalProvider({ privacyClass = 'standard', providerExternal = true, serverAllowsSensitive = false, userConsent = false } = {}) {
   if (!providerExternal) return true
-  if (privacyClass === 'standard') return true
-  return Boolean(serverAllowsSensitive && userConsent)
+  // Todo envio a provider externo exige consentimento explícito por arquivo.
+  if (!userConsent) return false
+  // Identidade e saúde exigem, além do consentimento, habilitação segura no servidor.
+  if (privacyClass === 'identity' || privacyClass === 'medical') return Boolean(serverAllowsSensitive)
+  return true
 }
 
 export function inferMimeFamily(mimeType = '') {
