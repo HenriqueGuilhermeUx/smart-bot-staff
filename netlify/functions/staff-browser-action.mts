@@ -605,27 +605,53 @@ export default async (request: Request) => {
     const result = parseRunOutput(run)
 
     if (phase === 'discovery') {
+      await cleanupBrowserSession(action.external_session_id)
       const resultStatus = String(result.status || '')
+
       if (resultStatus === 'ready_to_book') {
+        const bookingUrl = safeHttpsUrl(result.bookingUrl)
+        if (!bookingUrl) {
+          await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
+            status: 'failed',
+            external_task_id: null,
+            external_session_id: null,
+            result_summary: String(result.summary || '').slice(0, 3000),
+            result_json: { phase: 'failed', discovery: result, browserApi: 'v4' },
+            error_message: 'booking_url_invalid',
+          })
+          return json(200, {
+            actionId: action.id,
+            status: 'failed',
+            response: 'Encontrei disponibilidade, mas a página final de reserva não passou na validação de segurança.',
+          })
+        }
+
         if (!profileComplete(profile, email)) {
           await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
             status: 'needs_profile',
-            result_json: { phase: 'discovery', discovery: result },
+            external_task_id: null,
+            external_session_id: null,
+            result_json: { phase: 'discovery', discovery: result, browserApi: 'v4' },
           })
           return json(200, {
             actionId: action.id,
             status: 'needs_profile',
             code: 'RESERVATION_PROFILE_INCOMPLETE',
-            response: 'Encontrei a reserva, mas preciso do seu nome e telefone em Configurações > Dados para reservas para concluí-la.',
+            response: 'Encontrei o horário e a página de reserva. Agora salve seu nome e telefone em Configurações → Ações na web para eu concluir.',
           })
         }
 
         const booking = await startBooking(action, result, profile, email, null)
         await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
           status: 'running',
-          external_task_id: booking.taskId,
+          external_task_id: booking.runId,
           external_session_id: booking.sessionId,
-          result_json: { phase: 'booking', discovery: result, allowedDomains: booking.allowedDomains },
+          result_json: {
+            phase: 'booking',
+            discovery: result,
+            bookingHost: booking.bookingHost,
+            browserApi: 'v4',
+          },
         })
         return json(200, {
           actionId: action.id,
@@ -638,8 +664,15 @@ export default async (request: Request) => {
       if (resultStatus === 'alternatives') {
         await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
           status: 'needs_confirmation',
+          external_task_id: null,
+          external_session_id: null,
           result_summary: String(result.summary || '').slice(0, 3000),
-          result_json: { phase: 'discovery', discovery: result, confirmationKind: 'alternative_time' },
+          result_json: {
+            phase: 'discovery',
+            discovery: result,
+            confirmationKind: 'alternative_time',
+            browserApi: 'v4',
+          },
         })
         return json(200, {
           actionId: action.id,
@@ -650,15 +683,27 @@ export default async (request: Request) => {
         })
       }
 
+      const finalDiscoveryStatus = resultStatus === 'needs_input'
+        ? 'needs_confirmation'
+        : resultStatus === 'failed'
+          ? 'failed'
+          : 'completed'
+
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
-        status: resultStatus === 'needs_input' ? 'needs_confirmation' : 'completed',
+        status: finalDiscoveryStatus,
+        external_task_id: null,
+        external_session_id: null,
         result_summary: String(result.summary || '').slice(0, 3000),
-        result_json: { phase: 'discovery', discovery: result, confirmationKind: resultStatus === 'needs_input' ? 'clarification' : null },
+        result_json: {
+          phase: 'discovery',
+          discovery: result,
+          confirmationKind: resultStatus === 'needs_input' ? 'clarification' : null,
+          browserApi: 'v4',
+        },
       })
-      await stopSession(action.external_session_id)
       return json(200, {
         actionId: action.id,
-        status: resultStatus === 'needs_input' ? 'needs_confirmation' : 'completed',
+        status: finalDiscoveryStatus,
         confirmationKind: resultStatus === 'needs_input' ? 'clarification' : null,
         response: String(result.summary || 'Não encontrei uma reserva compatível com o pedido.'),
         result,
@@ -666,13 +711,20 @@ export default async (request: Request) => {
     }
 
     const bookingStatus = String(result.status || '')
-    if (bookingStatus === 'booked') {
+    const bookingHost = String(action.result_json?.bookingHost || '')
+    const finalUrl = safeHttpsUrl(result.finalUrl)
+    const finalHostValid = !finalUrl || !bookingHost || hostMatches(finalUrl.hostname, bookingHost)
+
+    await cleanupBrowserSession(action.external_session_id)
+
+    if (bookingStatus === 'booked' && finalHostValid) {
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
         status: 'completed',
+        external_task_id: null,
+        external_session_id: null,
         result_summary: String(result.summary || '').slice(0, 3000),
-        result_json: { phase: 'completed', reservation: result },
+        result_json: { phase: 'completed', reservation: result, browserApi: 'v4' },
       })
-      await stopSession(action.external_session_id)
       return json(200, {
         actionId: action.id,
         status: 'completed',
@@ -681,30 +733,41 @@ export default async (request: Request) => {
       })
     }
 
-    if (bookingStatus === 'needs_user') {
-      const session = await getSessionInfo(action.external_session_id)
+    if (bookingStatus === 'needs_user' || (bookingStatus === 'booked' && !finalHostValid)) {
+      const reason = !finalHostValid
+        ? 'A navegação terminou fora do domínio validado para a reserva. Parei a automação por segurança.'
+        : String(result.summary || result.reason || 'A reserva chegou a uma etapa que precisa de você.')
+
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
         status: 'needs_confirmation',
-        result_summary: String(result.summary || result.reason || '').slice(0, 3000),
-        result_json: { ...action.result_json, phase: 'booking', booking: result, confirmationKind: 'manual_takeover' },
+        external_task_id: null,
+        external_session_id: null,
+        result_summary: reason.slice(0, 3000),
+        result_json: {
+          ...action.result_json,
+          phase: 'booking',
+          booking: result,
+          confirmationKind: 'manual_takeover',
+          browserApi: 'v4',
+        },
       })
       return json(200, {
         actionId: action.id,
         status: 'needs_confirmation',
         confirmationKind: 'manual_takeover',
-        response: String(result.summary || result.reason || 'A reserva chegou a uma etapa que precisa de você.'),
-        liveUrl: typeof session?.liveUrl === 'string' ? session.liveUrl : null,
+        response: reason,
         result,
       })
     }
 
     await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
       status: 'failed',
+      external_task_id: null,
+      external_session_id: null,
       result_summary: String(result.summary || '').slice(0, 3000),
-      result_json: { phase: 'failed', booking: result },
+      result_json: { phase: 'failed', booking: result, browserApi: 'v4' },
       error_message: String(result.reason || result.summary || 'booking_failed').slice(0, 1000),
     })
-    await stopSession(action.external_session_id)
     return json(200, {
       actionId: action.id,
       status: 'failed',
