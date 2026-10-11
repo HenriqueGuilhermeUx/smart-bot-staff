@@ -487,10 +487,10 @@ export default async (request: Request) => {
     if (operation !== 'status') return json(400, { error: 'Operação inválida.' })
     if (!action.external_task_id) return json(409, { error: 'A ação não possui tarefa externa ativa.' })
 
-    const task = await browserRequest(`/tasks/${encodeURIComponent(action.external_task_id)}`)
+    const taskStatus = await browserRequest(`/tasks/${encodeURIComponent(action.external_task_id)}/status`)
     const phase = String(action.result_json?.phase || 'discovery')
 
-    if (task.status === 'started' || task.status === 'paused') {
+    if (taskStatus.status === 'started' || taskStatus.status === 'paused') {
       return json(200, {
         actionId: action.id,
         status: 'running',
@@ -499,7 +499,18 @@ export default async (request: Request) => {
       })
     }
 
-    if (task.status !== 'finished' || task.isSuccess === false) {
+    if (taskStatus.status !== 'finished') {
+      const reason = 'A execução web foi interrompida antes de concluir.'
+      await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
+        status: 'failed',
+        error_message: reason,
+      })
+      await stopSession(action.external_session_id)
+      return json(200, { actionId: action.id, status: 'failed', response: reason })
+    }
+
+    const task = await browserRequest(`/tasks/${encodeURIComponent(action.external_task_id)}`)
+    if (task.isSuccess === false) {
       const reason = String(task.output || 'A execução web não terminou com sucesso.').slice(0, 2000)
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
         status: 'failed',
