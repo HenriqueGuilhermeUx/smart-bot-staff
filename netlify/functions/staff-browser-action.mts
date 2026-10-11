@@ -208,6 +208,12 @@ function safeHttpsUrl(value: unknown) {
   }
 }
 
+function hostMatches(candidate: string, allowedHost: string) {
+  const host = candidate.toLowerCase()
+  const allowed = allowedHost.toLowerCase()
+  return host === allowed || host.endsWith(`.${allowed}`)
+}
+
 function parseOutput(output: unknown): Json {
   if (typeof output !== 'string' || !output.trim()) return {}
   try {
@@ -220,6 +226,11 @@ function parseOutput(output: unknown): Json {
     }
     return { summary: output.slice(0, 3000) }
   }
+}
+
+function parseRunOutput(run: any) {
+  if (run?.output && typeof run.output === 'object') return run.output as Json
+  return parseOutput(run?.result)
 }
 
 const discoverySchema = {
