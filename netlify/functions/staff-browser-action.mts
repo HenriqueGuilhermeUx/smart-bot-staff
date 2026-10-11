@@ -394,6 +394,28 @@ async function startBooking(
   }
 }
 
+async function startBookingSafely(
+  supabaseUrl: string,
+  serviceKey: string,
+  action: WebActionRow,
+  discovery: Json,
+  profile: any,
+  email: string,
+  selectedTime: string | null,
+) {
+  try {
+    return await startBooking(action, discovery, profile, email, selectedTime)
+  } catch (error) {
+    await updateAction(supabaseUrl, serviceKey, action.id, {
+      status: 'failed',
+      external_task_id: null,
+      external_session_id: null,
+      error_message: error instanceof Error ? error.message.slice(0, 1000) : 'booking_start_failed',
+    }).catch(() => undefined)
+    throw error
+  }
+}
+
 async function cancelRun(runId: string | null) {
   if (!runId) return
   try {
@@ -573,7 +595,7 @@ export default async (request: Request) => {
         })
       }
 
-      const booking = await startBooking(action, discovery, profile, email, selection)
+      const booking = await startBookingSafely(auth.supabaseUrl, auth.serviceKey, action, discovery, profile, email, selection)
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
         status: 'running',
         external_task_id: booking.runId,
@@ -660,7 +682,7 @@ export default async (request: Request) => {
           })
         }
 
-        const booking = await startBooking(action, result, profile, email, null)
+        const booking = await startBookingSafely(auth.supabaseUrl, auth.serviceKey, action, result, profile, email, null)
         await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
           status: 'running',
           external_task_id: booking.runId,
