@@ -6,6 +6,7 @@ const browserFn = readFileSync(new URL('../netlify/functions/staff-browser-actio
 const chat = readFileSync(new URL('../src/components/staff/ChatView.tsx', import.meta.url), 'utf8')
 const settings = readFileSync(new URL('../src/components/staff/LifeSettings.tsx', import.meta.url), 'utf8')
 const migration = readFileSync(new URL('../supabase/migrations/20261011_staff_browser_actions_v1.sql', import.meta.url), 'utf8')
+const deleteAccount = readFileSync(new URL('../netlify/functions/delete-account.mts', import.meta.url), 'utf8')
 
 test('Browser Actions uses two phases and sends no reservation secrets during discovery', () => {
   const discoveryStart = browserFn.indexOf('async function startDiscovery')
@@ -41,4 +42,17 @@ test('Reservation profile is explicit and protected by authenticated RLS', () =>
   assert.match(migration, /to authenticated/)
   assert.match(migration, /staff_web_actions_select_own/)
   assert.match(migration, /revoke all privileges on table public\.staff_profiles from public, anon, authenticated/)
+})
+
+test('Discovery can run before reservation contact profile is complete', () => {
+  const startBranch = browserFn.slice(
+    browserFn.indexOf("if (operation === 'start')"),
+    browserFn.indexOf("const actionId = String(payload.actionId"),
+  )
+  assert.match(startBranch, /startDiscovery/)
+  assert.equal(startBranch.includes("status: 'needs_profile'"), false)
+})
+
+test('Account deletion explicitly removes Browser Actions audit rows', () => {
+  assert.match(deleteAccount, /staff_web_actions/)
 })
