@@ -572,10 +572,10 @@ export default async (request: Request) => {
     if (operation !== 'status') return json(400, { error: 'Operação inválida.' })
     if (!action.external_task_id) return json(409, { error: 'A ação não possui tarefa externa ativa.' })
 
-    const taskStatus = await browserRequest(`/tasks/${encodeURIComponent(action.external_task_id)}/status`)
+    const runStatus = await browserRequest(`/runs/${encodeURIComponent(action.external_task_id)}/status`)
     const phase = String(action.result_json?.phase || 'discovery')
 
-    if (taskStatus.status === 'started' || taskStatus.status === 'paused') {
+    if (['queued', 'dispatching', 'running'].includes(String(runStatus.status))) {
       return json(200, {
         actionId: action.id,
         status: 'running',
@@ -584,28 +584,25 @@ export default async (request: Request) => {
       })
     }
 
-    if (taskStatus.status !== 'finished') {
-      const reason = 'A execução web foi interrompida antes de concluir.'
+    if (runStatus.status !== 'completed') {
+      const run = await browserRequest(`/runs/${encodeURIComponent(action.external_task_id)}`).catch(() => ({}))
+      const reason = String(run?.error || run?.result || 'A execução web foi interrompida antes de concluir.').slice(0, 2000)
+      await cleanupBrowserSession(action.external_session_id)
       await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
-        status: 'failed',
+        status: runStatus.status === 'cancelled' ? 'cancelled' : 'failed',
+        external_task_id: null,
+        external_session_id: null,
         error_message: reason,
       })
-      await stopSession(action.external_session_id)
-      return json(200, { actionId: action.id, status: 'failed', response: reason })
-    }
-
-    const task = await browserRequest(`/tasks/${encodeURIComponent(action.external_task_id)}`)
-    if (task.isSuccess === false) {
-      const reason = String(task.output || 'A execução web não terminou com sucesso.').slice(0, 2000)
-      await updateAction(auth.supabaseUrl, auth.serviceKey, action.id, {
-        status: 'failed',
-        error_message: reason,
+      return json(200, {
+        actionId: action.id,
+        status: runStatus.status === 'cancelled' ? 'cancelled' : 'failed',
+        response: reason,
       })
-      await stopSession(action.external_session_id)
-      return json(200, { actionId: action.id, status: 'failed', response: reason })
     }
 
-    const result = parseOutput(task.output)
+    const run = await browserRequest(`/runs/${encodeURIComponent(action.external_task_id)}`)
+    const result = parseRunOutput(run)
 
     if (phase === 'discovery') {
       const resultStatus = String(result.status || '')
