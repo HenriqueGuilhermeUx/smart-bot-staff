@@ -1,13 +1,15 @@
 {
+  "id": "/",
   "name": "Staff: Assistente com IA",
   "short_name": "Staff",
   "description": "Organize agenda, tarefas, rotina familiar e estudos com voz e inteligência artificial.",
   "theme_color": "#050816",
   "background_color": "#050816",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "scope": "/",
   "start_url": "/",
+  "lang": "pt-BR",
   "categories": ["productivity", "lifestyle", "education", "utilities"],
   "icons": [
     {
@@ -16,5 +18,12 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {"name":"Hoje","short_name":"Hoje","url":"/?screen=today","icons":[{"src":"/staff-icon.svg","sizes":"any","type":"image/svg+xml"}]},
+    {"name":"Agenda","short_name":"Agenda","url":"/?screen=calendar","icons":[{"src":"/staff-icon.svg","sizes":"any","type":"image/svg+xml"}]},
+    {"name":"Tarefas","short_name":"Tarefas","url":"/?screen=tasks","icons":[{"src":"/staff-icon.svg","sizes":"any","type":"image/svg+xml"}]},
+    {"name":"Conversar com Staff","short_name":"Conversar","url":"/?screen=chat","icons":[{"src":"/staff-icon.svg","sizes":"any","type":"image/svg+xml"}]}
+  ],
+  "prefer_related_applications": false
 }
