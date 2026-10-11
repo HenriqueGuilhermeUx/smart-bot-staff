@@ -414,20 +414,6 @@ export default async (request: Request) => {
         })
       }
 
-      if (!profileComplete(profile, email)) {
-        const action = await insertAction(
-          auth.supabaseUrl, auth.serviceKey, userId, requestText,
-          'restaurant_reservation', 'low', 'needs_profile',
-          { missing: ['reservation_name', 'reservation_phone'].filter((key) => !String(profile?.[key] || '').trim()) },
-        )
-        return json(409, {
-          actionId: action.id,
-          status: 'needs_profile',
-          code: 'RESERVATION_PROFILE_INCOMPLETE',
-          response: 'Para reservar sozinho, o Staff precisa do seu nome e telefone em Configurações > Dados para reservas.',
-        })
-      }
-
       const action = await insertAction(
         auth.supabaseUrl, auth.serviceKey, userId, requestText,
         'restaurant_reservation', 'low', 'queued',
