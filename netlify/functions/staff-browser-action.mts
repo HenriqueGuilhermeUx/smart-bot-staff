@@ -13,7 +13,10 @@ type WebActionRow = {
   result_json: Json
 }
 
-const BROWSER_API = 'https://api.browser-use.com/api/v2'
+const BROWSER_API = 'https://api.browser-use.com/api/v4'
+const DISCOVERY_MAX_COST_USD = 0.35
+const BOOKING_MAX_COST_USD = 0.45
+const DAILY_START_LIMIT = 10
 
 function env(name: string) {
   return String(Netlify.env.get(name) || '').trim()
@@ -141,6 +144,38 @@ async function updateAction(
   if (!response.ok) throw new Error('Não consegui atualizar a ação web.')
   const rows = await response.json()
   return rows[0] as WebActionRow
+}
+
+async function findActiveAction(supabaseUrl: string, serviceKey: string, userId: string) {
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    status: 'in.(queued,running)',
+    select: 'id,status,created_at',
+    order: 'created_at.desc',
+    limit: '1',
+  })
+  const response = await fetch(`${supabaseUrl}/rest/v1/staff_web_actions?${params}`, {
+    headers: serviceHeaders(serviceKey),
+  })
+  if (!response.ok) return null
+  const rows = await response.json()
+  return Array.isArray(rows) ? rows[0] || null : null
+}
+
+async function dailyActionCount(supabaseUrl: string, serviceKey: string, userId: string) {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    created_at: `gte.${since}`,
+    select: 'id',
+    limit: String(DAILY_START_LIMIT + 1),
+  })
+  const response = await fetch(`${supabaseUrl}/rest/v1/staff_web_actions?${params}`, {
+    headers: serviceHeaders(serviceKey),
+  })
+  if (!response.ok) return 0
+  const rows = await response.json()
+  return Array.isArray(rows) ? rows.length : 0
 }
 
 async function browserRequest(path: string, init: RequestInit = {}) {
