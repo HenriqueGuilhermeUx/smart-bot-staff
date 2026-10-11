@@ -26,6 +26,7 @@ export type BrowserActionResponse = {
   phase?: 'discovery' | 'booking'
   code?: string
   response?: string
+  originalRequest?: string
   confirmationKind?: 'alternative_time' | 'clarification' | 'manual_takeover' | null
   alternatives?: string[]
   liveUrl?: string | null
