@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc -b",
-    "build": "vite build",
+    "build": "node scripts/browser-use-preview-probe.mjs && vite build",
     "preview": "vite preview",
     "test:smart-inbox": "node --test scripts/smart-inbox.test.mjs",
     "android:init": "npm run build && npx cap add android",
