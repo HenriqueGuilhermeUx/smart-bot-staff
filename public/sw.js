@@ -1,4 +1,4 @@
-const CACHE_NAME = "staff-pwa-v1";
+const CACHE_NAME = "staff-pwa-v2";
 const CORE = ["/", "/manifest.json", "/staff-icon.svg"];
 
 self.addEventListener("install", (event) => {
