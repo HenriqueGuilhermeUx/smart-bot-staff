@@ -193,7 +193,8 @@ export async function uploadDocument(input: {
   userId: string
   file: File
   privacyClass: StaffDocumentPrivacy
-  sensitiveProcessingConsent?: boolean
+  analyze?: boolean
+  externalProcessingConsent?: boolean
 }) {
   const file = await prepareDocumentFile(input.file)
   const id = makeUuid()
@@ -213,7 +214,7 @@ export async function uploadDocument(input: {
     file_size: file.size,
     file_hash: fileHash,
     privacy_class: input.privacyClass,
-    external_processing_consent: Boolean(input.sensitiveProcessingConsent),
+    external_processing_consent: Boolean(input.externalProcessingConsent),
   }).select('*').single()
   if (error) throw documentError(error, 'Não consegui criar o documento.')
 
@@ -232,26 +233,36 @@ export async function uploadDocument(input: {
     mime_family: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'document',
   })
 
-  if (input.privacyClass !== 'standard' && !input.sensitiveProcessingConsent) {
-    const { data: protectedDocument, error: protectedError } = await supabase.from('staff_documents').update({
+  if (input.analyze === false) {
+    const { data: savedOnly, error: savedOnlyError } = await supabase.from('staff_documents').update({
       status: 'needs_review',
-      error_code: 'SENSITIVE_EXTERNAL_PROCESSING_NOT_REQUESTED',
-      error_message: 'Arquivo privado salvo. A análise externa não foi solicitada para este conteúdo sensível.',
+      error_code: 'ANALYSIS_NOT_REQUESTED',
+      error_message: 'Arquivo salvo privadamente sem análise automática. Você pode preencher os dados manualmente ou solicitar análise depois.',
     }).eq('id', id).eq('user_id', input.userId).select('*').single()
-    if (protectedError) throw documentError(protectedError, 'O arquivo foi salvo, mas não consegui atualizar seu status.')
-    return protectedDocument as StaffDocument
+    if (savedOnlyError) throw documentError(savedOnlyError, 'O arquivo foi salvo, mas não consegui atualizar seu status.')
+    return savedOnly as StaffDocument
   }
 
-  return analyzeDocument(id, Boolean(input.sensitiveProcessingConsent))
+  if (!input.externalProcessingConsent) {
+    const { data: consentRequired, error: consentError } = await supabase.from('staff_documents').update({
+      status: 'needs_review',
+      error_code: 'EXTERNAL_PROCESSING_CONSENT_REQUIRED',
+      error_message: 'Arquivo salvo com segurança. A análise por provedor externo só acontece após consentimento explícito para este arquivo.',
+    }).eq('id', id).eq('user_id', input.userId).select('*').single()
+    if (consentError) throw documentError(consentError, 'O arquivo foi salvo, mas não consegui atualizar seu status.')
+    return consentRequired as StaffDocument
+  }
+
+  return analyzeDocument(id, true)
 }
 
-export async function analyzeDocument(documentId: string, sensitiveProcessingConsent = false): Promise<StaffDocument> {
+export async function analyzeDocument(documentId: string, externalProcessingConsent = false): Promise<StaffDocument> {
   const session = await getSession()
   if (!session?.access_token) throw new Error('Sua sessão expirou. Entre novamente no Staff.')
   const response = await fetch('/.netlify/functions/staff-document-analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ document_id: documentId, sensitive_processing_consent: sensitiveProcessingConsent }),
+    body: JSON.stringify({ document_id: documentId, external_processing_consent: externalProcessingConsent }),
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok && payload.document) return payload.document as StaffDocument
@@ -366,6 +377,20 @@ export async function registerExpenseFromDocument(userId: string, document: Staf
     dedupe_fingerprint: document.dedupe_fingerprint,
     metadata: { source: 'smart_inbox', document_type: document.document_type },
   }).select('*').single()
+
+  if (error?.code === '23505') {
+    let duplicateEntry: StaffFinancialEntry | null = null
+    if (document.dedupe_fingerprint) {
+      const { data: duplicateRows } = await supabase.from('staff_financial_entries').select('*').eq('user_id', userId).eq('dedupe_fingerprint', document.dedupe_fingerprint).limit(1)
+      duplicateEntry = (duplicateRows?.[0] as StaffFinancialEntry | undefined) || null
+    }
+    if (!duplicateEntry) {
+      const { data: duplicateRows } = await supabase.from('staff_financial_entries').select('*').eq('user_id', userId).eq('source_document_id', document.id).limit(1)
+      duplicateEntry = (duplicateRows?.[0] as StaffFinancialEntry | undefined) || null
+    }
+    if (duplicateEntry) return { entry: duplicateEntry, duplicate: true }
+  }
+
   if (error) throw documentError(error, 'Não consegui registrar a despesa.')
   await recordAction(userId, document.id, 'REGISTER_EXPENSE', 'financial_entry', data.id)
   await trackDocumentEvent(userId, 'financial_entry.created_from_document', document.id, { document_type: document.document_type, action_type: 'REGISTER_EXPENSE' })
@@ -408,6 +433,32 @@ export async function linkDocumentToPerson(userId: string, document: StaffDocume
   }).select('*').single()
   if (error) throw documentError(error, 'Não consegui vincular a pessoa.')
   await recordAction(userId, document.id, 'LINK_PERSON', 'person', data.id, { label: label.slice(0, 80) })
+  return data
+}
+
+export async function linkDocumentToFinancialEntry(userId: string, document: StaffDocument, entry: StaffFinancialEntry) {
+  if (entry.user_id !== userId) throw new Error('Lançamento financeiro inválido.')
+  const label = `${entry.description} · ${entry.currency} ${Number(entry.amount).toFixed(2)} · ${entry.occurred_on}`
+  const { data, error } = await supabase.from('staff_document_links').insert({
+    user_id: userId,
+    document_id: document.id,
+    entity_type: 'financial_entry',
+    entity_id: entry.id,
+    entity_label: label.slice(0, 160),
+    metadata: { source_document_id: entry.source_document_id || null },
+  }).select('*').single()
+  if (error?.code === '23505') {
+    const { data: existing } = await supabase.from('staff_document_links')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('document_id', document.id)
+      .eq('entity_type', 'financial_entry')
+      .eq('entity_id', entry.id)
+      .maybeSingle()
+    if (existing) return existing
+  }
+  if (error) throw documentError(error, 'Não consegui vincular o comprovante ao lançamento.')
+  await recordAction(userId, document.id, 'LINK_FINANCIAL_ENTRY', 'financial_entry', entry.id)
   return data
 }
 
