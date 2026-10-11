@@ -18,8 +18,10 @@ import {
   eventFromDocument,
   getSignedDocumentUrl,
   ignoreDocument,
+  linkDocumentToFinancialEntry,
   linkDocumentToPerson,
   listDocuments,
+  loadFinancialEntries,
   recordEventCreated,
   recordReminderCreated,
   registerExpenseFromDocument,
@@ -30,6 +32,7 @@ import {
   type StaffDocument,
   type StaffDocumentPrivacy,
   type StaffDocumentType,
+  type StaffFinancialEntry,
 } from '@/lib/staffDocuments'
 
 type FilterKey = 'all' | 'review' | 'processed' | 'archived' | 'errors'
@@ -132,7 +135,7 @@ export function SmartInboxView({
   const [selectedId, setSelectedId] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [privacyClass, setPrivacyClass] = useState<StaffDocumentPrivacy | ''>('')
-  const [sensitiveConsent, setSensitiveConsent] = useState(false)
+  const [processingConsent, setProcessingConsent] = useState(false)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -142,6 +145,9 @@ export function SmartInboxView({
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [person, setPerson] = useState('')
   const [showPerson, setShowPerson] = useState(false)
+  const [financialEntries, setFinancialEntries] = useState<StaffFinancialEntry[]>([])
+  const [showFinancialLink, setShowFinancialLink] = useState(false)
+  const [financialEntryId, setFinancialEntryId] = useState('')
 
   const selected = documents.find((item) => item.id === selectedId) || documents[0]
 
@@ -160,7 +166,13 @@ export function SmartInboxView({
   }
 
   useEffect(() => { void refresh() }, [userId])
-  useEffect(() => { setDraft(selected ? toDraft(selected) : EMPTY_DRAFT); setShowPerson(false); setPerson('') }, [selected?.id])
+  useEffect(() => {
+    setDraft(selected ? toDraft(selected) : EMPTY_DRAFT)
+    setShowPerson(false)
+    setPerson('')
+    setShowFinancialLink(false)
+    setFinancialEntryId('')
+  }, [selected?.id])
 
   function replaceDocument(document: StaffDocument) {
     setDocuments((current) => current.some((item) => item.id === document.id)
@@ -172,30 +184,37 @@ export function SmartInboxView({
   function chooseFile(next: File | null) {
     setFile(next)
     setPrivacyClass('')
-    setSensitiveConsent(false)
+    setProcessingConsent(false)
     setError('')
     setMessage('')
   }
 
-  async function processUpload() {
+  async function processUpload(analyze: boolean) {
     if (!file || !privacyClass) return
+    if (analyze && !processingConsent) {
+      setError('Confirme o consentimento de processamento para analisar este arquivo por IA.')
+      return
+    }
     setUploading(true)
     setError('')
-    setMessage('Guardando o arquivo privado...')
+    setMessage(analyze ? 'Guardando e analisando o arquivo...' : 'Guardando o arquivo privado...')
     try {
       const document = await uploadDocument({
         userId,
         file,
         privacyClass,
-        sensitiveProcessingConsent: privacyClass === 'standard' ? false : sensitiveConsent,
+        analyze,
+        externalProcessingConsent: analyze ? processingConsent : false,
       })
       replaceDocument(document)
       setFile(null)
       setPrivacyClass('')
-      setSensitiveConsent(false)
-      setMessage(document.error_code?.startsWith('SENSITIVE_')
-        ? 'Arquivo salvo. A análise externa ficou bloqueada pela proteção de dados sensíveis.'
-        : 'Documento analisado. Confira os dados antes de qualquer ação.')
+      setProcessingConsent(false)
+      setMessage(!analyze
+        ? 'Arquivo guardado privadamente sem análise automática.'
+        : document.error_code?.startsWith('SENSITIVE_') || document.error_code === 'EXTERNAL_PROCESSING_CONSENT_REQUIRED'
+          ? 'Arquivo salvo. A análise externa ficou bloqueada pela proteção de privacidade.'
+          : 'Documento analisado. Confira os dados antes de qualquer ação.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Não consegui processar o arquivo.')
       setMessage('')
@@ -307,6 +326,34 @@ export function SmartInboxView({
     finally { setWorking('') }
   }
 
+  async function openFinancialLink() {
+    if (!selected || !requireConfirmed()) return
+    setWorking('load-finance'); setError('')
+    try {
+      const entries = await loadFinancialEntries(userId)
+      setFinancialEntries(entries)
+      setFinancialEntryId(entries[0]?.id || '')
+      setShowFinancialLink(true)
+      if (!entries.length) setMessage('Ainda não há lançamentos em Finanças para vincular.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Não consegui carregar os lançamentos.')
+    } finally { setWorking('') }
+  }
+
+  async function linkFinancial() {
+    if (!selected || !requireConfirmed()) return
+    const entry = financialEntries.find((item) => item.id === financialEntryId)
+    if (!entry) return
+    setWorking('link-finance'); setError('')
+    try {
+      await linkDocumentToFinancialEntry(userId, selected, entry)
+      setShowFinancialLink(false)
+      setMessage('Comprovante vinculado ao lançamento financeiro selecionado.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Não consegui vincular o lançamento.')
+    } finally { setWorking('') }
+  }
+
   async function openOriginal() {
     if (!selected) return
     setWorking('open'); setError('')
@@ -362,11 +409,22 @@ export function SmartInboxView({
             ['standard','Documento comum','Recibo, boleto, nota, contrato, garantia'],
             ['identity','Identidade','RG, CNH, passaporte ou documento pessoal'],
             ['medical','Saúde','Exame, laudo, receita ou documento médico'],
-          ].map(([value, label, description]) => <label key={value} className={cn('rounded-xl border p-3 cursor-pointer', privacyClass === value ? 'border-purple-500/50 bg-purple-500/10' : 'border-slate-800 bg-slate-900/50')}><input type="radio" name="privacy" value={value} checked={privacyClass === value} onChange={() => { setPrivacyClass(value as StaffDocumentPrivacy); setSensitiveConsent(false) }} className="mr-2" /><span className="font-bold text-sm">{label}</span><p className="text-[11px] text-slate-500 mt-1 ml-5">{description}</p></label>)}</div>
+          ].map(([value, label, description]) => <label key={value} className={cn('rounded-xl border p-3 cursor-pointer', privacyClass === value ? 'border-purple-500/50 bg-purple-500/10' : 'border-slate-800 bg-slate-900/50')}><input type="radio" name="privacy" value={value} checked={privacyClass === value} onChange={() => { setPrivacyClass(value as StaffDocumentPrivacy); setProcessingConsent(false) }} className="mr-2" /><span className="font-bold text-sm">{label}</span><p className="text-[11px] text-slate-500 mt-1 ml-5">{description}</p></label>)}</div>
 
-          {privacyClass && privacyClass !== 'standard' && <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"><p className="text-sm font-bold text-amber-200 flex gap-2"><AlertTriangle className="w-4 h-4 mt-0.5" />Proteção reforçada</p><p className="text-xs text-amber-100/60 mt-2">O Staff não envia identidade ou conteúdo médico a um provedor externo por padrão. Você pode apenas guardar o arquivo privado. Para pedir análise, é necessário consentimento explícito e o servidor também precisa ter sido habilitado para isso.</p><label className="flex gap-2 mt-3 text-xs text-slate-300"><input type="checkbox" checked={sensitiveConsent} onChange={(event) => setSensitiveConsent(event.target.checked)} /><span>Solicito a análise deste arquivo sensível e autorizo o processamento externo apenas se a configuração segura do Staff estiver habilitada.</span></label></div>}
+          {privacyClass && <div className={cn('mt-4 rounded-xl border p-4', privacyClass === 'standard' ? 'border-purple-500/20 bg-purple-500/5' : 'border-amber-500/20 bg-amber-500/5')}>
+            <p className={cn('text-sm font-bold flex gap-2', privacyClass === 'standard' ? 'text-purple-200' : 'text-amber-200')}><AlertTriangle className="w-4 h-4 mt-0.5" />{privacyClass === 'standard' ? 'Análise por IA sob seu controle' : 'Proteção reforçada'}</p>
+            <p className="text-xs text-slate-400 mt-2">{privacyClass === 'standard'
+              ? 'Você pode guardar o documento sem análise. Para extrair os dados automaticamente, autorize o processamento deste arquivo pelo provedor de IA configurado no Staff.'
+              : 'Identidade e conteúdo médico podem ser guardados sem análise. Mesmo com seu consentimento, o servidor precisa estar explicitamente habilitado para permitir processamento externo sensível.'}</p>
+            <label className="flex gap-2 mt-3 text-xs text-slate-300"><input type="checkbox" checked={processingConsent} onChange={(event) => setProcessingConsent(event.target.checked)} /><span>{privacyClass === 'standard'
+              ? 'Autorizo a análise deste arquivo por IA e confirmo que o classifiquei como documento comum.'
+              : 'Solicito a análise deste arquivo sensível e autorizo o processamento externo somente se a configuração segura do Staff estiver habilitada.'}</span></label>
+          </div>}
 
-          <button onClick={() => void processUpload()} disabled={!privacyClass || uploading} className="btn-purple mt-5 px-6 py-3 rounded-xl font-black disabled:opacity-35">{uploading ? <><Loader2 className="inline w-4 h-4 mr-2 animate-spin" />Processando...</> : <><Sparkles className="inline w-4 h-4 mr-2" />Enviar ao Smart Inbox</>}</button>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <button onClick={() => void processUpload(false)} disabled={!privacyClass || uploading} className="px-5 py-3 rounded-xl bg-slate-900 border border-slate-700 font-bold disabled:opacity-35"><Save className="inline w-4 h-4 mr-2" />Guardar sem analisar</button>
+            <button onClick={() => void processUpload(true)} disabled={!privacyClass || !processingConsent || uploading} className="btn-purple px-6 py-3 rounded-xl font-black disabled:opacity-35">{uploading ? <><Loader2 className="inline w-4 h-4 mr-2 animate-spin" />Processando...</> : <><Sparkles className="inline w-4 h-4 mr-2" />Analisar com IA</>}</button>
+          </div>
         </div>}
       </section>
 
@@ -402,6 +460,7 @@ export function SmartInboxView({
               <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-4"><p className="text-xs text-slate-500">Valor reconhecido</p><p className="text-xl font-black mt-2">{formatMoney(selected.total_amount, selected.currency)}</p></div>
             </div>
             <Field label="Resumo"><textarea rows={4} value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} className="field-input resize-y" /></Field>
+            {selected.metadata?.barcode && <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4"><p className="text-[11px] uppercase tracking-wide font-bold text-slate-600">Código / linha digitável</p><div className="flex gap-2 items-start mt-2"><code className="text-xs text-slate-300 break-all flex-1">{String(selected.metadata.barcode)}</code><button onClick={() => void navigator.clipboard?.writeText(String(selected.metadata.barcode))} className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-purple-200">Copiar</button></div></div>}
 
             {selected.items?.length > 0 && <details className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><summary className="cursor-pointer font-bold text-sm">Itens identificados ({selected.items.length})</summary><div className="mt-3 space-y-2">{selected.items.slice(0, 30).map((item,index) => <div key={index} className="text-xs text-slate-400 flex justify-between gap-3"><span>{String(item.description || `Item ${index + 1}`)}</span><span>{item.total === null || item.total === undefined ? '' : formatMoney(Number(item.total), selected.currency)}</span></div>)}</div></details>}
             {selected.obligations?.length > 0 && <details className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><summary className="cursor-pointer font-bold text-sm">Obrigações e prazos ({selected.obligations.length})</summary><div className="mt-3 space-y-2">{selected.obligations.slice(0, 30).map((item,index) => <p key={index} className="text-xs text-slate-400">• {String(item.description || 'Obrigação')} {item.dueDate ? `— ${String(item.dueDate)}` : ''}</p>)}</div></details>}
@@ -415,10 +474,12 @@ export function SmartInboxView({
               <ActionButton icon={Archive} label="Salvar documento" disabled={!confirmed || Boolean(working)} onClick={() => void archive()} />
               <ActionButton icon={Sparkles} label="Adicionar à memória" disabled={!confirmed || Boolean(working)} onClick={() => void memory()} />
               <ActionButton icon={UserRoundPlus} label="Vincular a uma pessoa" disabled={!confirmed || Boolean(working)} onClick={() => setShowPerson(true)} />
+              {selected.document_type === 'BANK_RECEIPT' && <ActionButton icon={Link2} label="Vincular a lançamento" disabled={!confirmed || Boolean(working)} onClick={() => void openFinancialLink()} />}
               {(selected.due_date || selected.issue_date) && <ActionButton icon={CalendarPlus} label="Adicionar compromisso" disabled={!confirmed || Boolean(working)} onClick={() => void addEvent()} />}
               <ActionButton icon={XCircle} label="Ignorar" disabled={Boolean(working)} onClick={() => void ignore()} />
             </div>
             {showPerson && <div className="flex flex-col sm:flex-row gap-2 mt-3"><input value={person} onChange={(e) => setPerson(e.target.value)} placeholder="Nome ou identificação da pessoa" className="field-input flex-1" /><button onClick={() => void linkPerson()} disabled={!person.trim() || working === 'person'} className="btn-purple px-5 py-3 rounded-xl font-bold"><Link2 className="inline w-4 h-4 mr-2" />Vincular</button></div>}
+            {showFinancialLink && <div className="flex flex-col sm:flex-row gap-2 mt-3"><select value={financialEntryId} onChange={(e) => setFinancialEntryId(e.target.value)} className="field-input flex-1"><option value="">Selecione um lançamento</option>{financialEntries.map((entry) => <option key={entry.id} value={entry.id}>{new Date(`${entry.occurred_on}T12:00:00`).toLocaleDateString('pt-BR')} · {entry.description} · {formatMoney(Number(entry.amount), entry.currency)}</option>)}</select><button onClick={() => void linkFinancial()} disabled={!financialEntryId || working === 'link-finance'} className="btn-purple px-5 py-3 rounded-xl font-bold"><Link2 className="inline w-4 h-4 mr-2" />Vincular comprovante</button></div>}
             {confirmed && <button onClick={() => onNavigate('finance')} className="mt-4 text-sm text-purple-300 hover:text-purple-200">Abrir Finanças →</button>}
             </div>
           </>}
