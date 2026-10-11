@@ -349,6 +349,20 @@ export async function loadFinancialEntries(userId: string): Promise<StaffFinanci
   return (data || []) as StaffFinancialEntry[]
 }
 
+export async function deleteFinancialEntry(userId: string, entry: StaffFinancialEntry) {
+  await supabase.from('staff_document_links')
+    .delete()
+    .eq('user_id', userId)
+    .eq('entity_type', 'financial_entry')
+    .eq('entity_id', entry.id)
+
+  const { error } = await supabase.from('staff_financial_entries')
+    .delete()
+    .eq('id', entry.id)
+    .eq('user_id', userId)
+  if (error) throw documentError(error, 'Não consegui excluir o lançamento financeiro.')
+}
+
 export async function registerExpenseFromDocument(userId: string, document: StaffDocument) {
   if (document.status !== 'confirmed' && document.status !== 'archived') throw new Error('Confirme os dados do documento antes de registrar a despesa.')
   if (document.total_amount === null || document.total_amount === undefined) throw new Error('Revise e informe o valor antes de registrar a despesa.')
