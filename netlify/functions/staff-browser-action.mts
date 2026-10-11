@@ -222,7 +222,9 @@ function parseOutput(output: unknown): Json {
   }
 }
 
-const discoverySchema = JSON.stringify({
+const discoverySchema = {
+  additionalProperties: false,
+  type: 'object',
   type: 'object',
   properties: {
     status: { enum: ['ready_to_book', 'alternatives', 'needs_input', 'not_found', 'failed'] },
@@ -234,13 +236,15 @@ const discoverySchema = JSON.stringify({
     bookingUrl: { type: ['string', 'null'] },
     provider: { type: ['string', 'null'] },
     location: { type: ['string', 'null'] },
-    alternatives: { type: 'array', items: { type: 'string' } },
+    alternatives: { type: 'array', items: { type: 'string' }, maxItems: 3 },
     summary: { type: 'string' },
   },
   required: ['status', 'alternatives', 'summary'],
-})
+}
 
-const bookingSchema = JSON.stringify({
+const bookingSchema = {
+  additionalProperties: false,
+  type: 'object',
   type: 'object',
   properties: {
     status: { enum: ['booked', 'needs_user', 'failed'] },
@@ -255,7 +259,7 @@ const bookingSchema = JSON.stringify({
     summary: { type: 'string' },
   },
   required: ['status', 'summary'],
-})
+}
 
 function discoveryTask(requestText: string) {
   return `Você é o executor web do Staff. O usuário pediu exatamente:
@@ -369,24 +373,29 @@ async function startBooking(action: WebActionRow, discovery: Json, profile: any,
   }
 }
 
-async function getSessionInfo(sessionId: string | null) {
-  if (!sessionId) return null
+async function cancelRun(runId: string | null) {
+  if (!runId) return
   try {
-    return await browserRequest(`/sessions/${encodeURIComponent(sessionId)}`)
+    await browserRequest(`/runs/${encodeURIComponent(runId)}/cancel`, { method: 'POST' })
   } catch {
-    return null
+    // Best effort: terminal runs are already safe.
   }
 }
 
-async function stopSession(sessionId: string | null) {
+async function cleanupBrowserSession(sessionId: string | null) {
   if (!sessionId) return
   try {
-    await browserRequest(`/sessions/${encodeURIComponent(sessionId)}`, {
+    await browserRequest(`/browsers/${encodeURIComponent(sessionId)}`, {
       method: 'PATCH',
       body: JSON.stringify({ action: 'stop' }),
     })
   } catch {
-    // Best effort cleanup.
+    // Hosted runs may already have stopped the browser.
+  }
+  try {
+    await browserRequest(`/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
+  } catch {
+    // Best effort archive after stopping browser billing.
   }
 }
 
