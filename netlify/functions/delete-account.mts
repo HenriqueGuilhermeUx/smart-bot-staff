@@ -71,6 +71,8 @@ export default async (request: Request) => {
   }
 
   const tables = [
+    // Browser Actions: auditoria antes dos demais dados do perfil.
+    'staff_web_actions',
     // Smart Inbox: dependências antes do documento.
     'staff_document_actions',
     'staff_document_links',
