@@ -73,8 +73,8 @@ jobs:
           grep -q "SENSITIVE_EXTERNAL_PROCESSING_DISABLED" netlify/functions/staff-document-analyze.mts
           grep -q "Fonte documental" netlify/functions/staff-chat-v2.js
           grep -q "staff_web_actions" supabase/migrations/20261011_staff_browser_actions_v1.sql
-          grep -q "allowedDomains" netlify/functions/staff-browser-action.mts
-          grep -q "reservation_phone" netlify/functions/staff-browser-action.mts
+          grep -q "secretBindings" netlify/functions/staff-browser-action.mts
+          grep -q "api/v4" netlify/functions/staff-browser-action.mts\n          grep -q "reservation_phone" netlify/functions/staff-browser-action.mts
           echo "Smart Inbox e Browser Actions: backend, privacidade, ownership e guardrails presentes."
 
       - name: Reject legacy Nexa access gate
