@@ -132,9 +132,10 @@ export function buildDocumentFingerprint(document, fileHash = '') {
   const documentNumber = cleanFingerprintPart(normalized.documentNumber)
   const normalizedFileHash = cleanFingerprintPart(fileHash).slice(0, 64)
 
-  // Regra do Staff: emissor + valor + data + número quando o número existe.
-  // Sem número, o hash do arquivo entra na identidade para evitar falso positivo
-  // entre duas compras legítimas de mesmo valor no mesmo local e dia.
+  // Regra de deduplicação do Staff:
+  // emissor + valor + data + número do documento quando o número existe;
+  // na ausência do número, usa o hash do arquivo como componente de identidade.
+  // Isso evita marcar como duplicadas duas compras legítimas de mesmo valor no mesmo local/dia.
   let basis = ''
   if (documentNumber && (issuer || amount || date)) {
     basis = [issuer, amount, date, `doc:${documentNumber}`].join('|')
@@ -166,8 +167,11 @@ export function sanitizeTelemetryProperties(properties = {}) {
 
 export function canUseExternalProvider({ privacyClass = 'standard', providerExternal = true, serverAllowsSensitive = false, userConsent = false } = {}) {
   if (!providerExternal) return true
-  if (privacyClass === 'standard') return true
-  return Boolean(serverAllowsSensitive && userConsent)
+  // Todo envio a provider externo exige consentimento explícito por arquivo.
+  if (!userConsent) return false
+  // Identidade e saúde exigem, além do consentimento, habilitação segura no servidor.
+  if (privacyClass === 'identity' || privacyClass === 'medical') return Boolean(serverAllowsSensitive)
+  return true
 }
 
 export function inferMimeFamily(mimeType = '') {

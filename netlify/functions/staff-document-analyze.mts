@@ -75,12 +75,14 @@ function encodeStoragePath(path: string) {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
 }
 
-function documentPatch(extraction: ReturnType<typeof normalizeDocumentExtraction>, input: { provider: string; fileHash: string; duplicateOf?: string | null; fingerprint?: string | null; privacyClass: string }) {
+function documentPatch(extraction: ReturnType<typeof normalizeDocumentExtraction>, input: { provider: string; providerExternal: boolean; fileHash: string; duplicateOf?: string | null; fingerprint?: string | null; privacyClass: string }) {
   const detectedPrivacy = extraction.documentType === 'IDENTITY_DOCUMENT'
     ? 'identity'
     : extraction.documentType === 'MEDICAL_DOCUMENT'
       ? 'medical'
       : input.privacyClass
+
+  const sensitiveDetectedAfterStandard = input.privacyClass === 'standard' && detectedPrivacy !== 'standard'
 
   return {
     document_type: extraction.documentType,
@@ -106,14 +108,16 @@ function documentPatch(extraction: ReturnType<typeof normalizeDocumentExtraction
     provider: input.provider,
     provider_metadata: {
       processed_at: new Date().toISOString(),
-      external_provider: input.provider !== 'mock',
+      external_provider: input.providerExternal,
       sensitive_type_detected: detectedPrivacy !== 'standard',
     },
     metadata: extraction.metadata,
     duplicate_of: input.duplicateOf || null,
     dedupe_fingerprint: input.fingerprint || null,
-    error_code: null,
-    error_message: null,
+    error_code: sensitiveDetectedAfterStandard ? 'SENSITIVE_TYPE_DETECTED_AFTER_PROCESSING' : null,
+    error_message: sensitiveDetectedAfterStandard
+      ? 'A análise identificou conteúdo de identidade ou saúde após o arquivo ter sido classificado como comum. O Staff marcou o documento como sensível e ele não será incluído no contexto geral do assistente. Revise a classificação antes de continuar.'
+      : null,
   }
 }
 
@@ -141,11 +145,14 @@ export default async (request: Request) => {
 
     const provider = resolveDocumentProvider(process.env)
     const privacyClass = String(document.privacy_class || 'standard')
-    const userConsent = Boolean(document.external_processing_consent && payload.sensitive_processing_consent)
+    const requestConsent = Boolean(payload.external_processing_consent ?? payload.sensitive_processing_consent)
+    const userConsent = Boolean(document.external_processing_consent && requestConsent)
     const serverAllowsSensitive = String(process.env.STAFF_ALLOW_SENSITIVE_EXTERNAL_PROCESSING || '').toLowerCase() === 'true'
 
     if (!canUseExternalProvider({ privacyClass, providerExternal: provider.external, serverAllowsSensitive, userConsent })) {
-      const message = 'Por privacidade, documentos de identidade e saúde não são enviados a serviços externos sem habilitação do servidor e consentimento explícito. O arquivo foi guardado com segurança para revisão.'
+      const message = privacyClass === 'standard'
+        ? 'A análise por provedor externo requer consentimento explícito para este arquivo. O documento continua salvo privadamente e pode ser revisado manualmente.'
+        : 'Por privacidade, documentos de identidade e saúde não são enviados a serviços externos sem habilitação do servidor e consentimento explícito. O arquivo foi guardado com segurança para revisão.'
       const updated = await patchDocument(supabaseUrl, secret, user.id, documentId, {
         status: 'needs_review',
         error_code: 'SENSITIVE_EXTERNAL_PROCESSING_DISABLED',
@@ -193,7 +200,7 @@ export default async (request: Request) => {
       secret,
       user.id,
       documentId,
-      documentPatch(extraction, { provider: provider.name, fileHash, duplicateOf, fingerprint, privacyClass }),
+      documentPatch(extraction, { provider: provider.name, providerExternal: provider.external, fileHash, duplicateOf, fingerprint, privacyClass }),
     )
 
     await track(supabaseUrl, secret, user.id, 'document.classified', documentId, {

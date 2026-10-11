@@ -75,9 +75,10 @@ test('telemetria elimina conteúdo e conserva somente chaves agregáveis', () =>
   })
 })
 
-test('provedor externo é bloqueado para identidade/saúde por padrão', () => {
-  assert.equal(canUseExternalProvider({ privacyClass: 'standard', providerExternal: true }), true)
-  assert.equal(canUseExternalProvider({ privacyClass: 'identity', providerExternal: true }), false)
+test('provedor externo exige consentimento e proteção reforçada para identidade/saúde', () => {
+  assert.equal(canUseExternalProvider({ privacyClass: 'standard', providerExternal: true, userConsent: false }), false)
+  assert.equal(canUseExternalProvider({ privacyClass: 'standard', providerExternal: true, userConsent: true }), true)
+  assert.equal(canUseExternalProvider({ privacyClass: 'identity', providerExternal: true, userConsent: true }), false)
   assert.equal(canUseExternalProvider({ privacyClass: 'medical', providerExternal: true, serverAllowsSensitive: true, userConsent: false }), false)
   assert.equal(canUseExternalProvider({ privacyClass: 'identity', providerExternal: true, serverAllowsSensitive: true, userConsent: true }), true)
   assert.equal(canUseExternalProvider({ privacyClass: 'medical', providerExternal: false }), true)
