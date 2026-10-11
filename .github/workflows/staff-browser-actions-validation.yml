@@ -1,0 +1,33 @@
+name: Staff Browser Actions validation
+
+on:
+  push:
+    branches:
+      - feature/staff-browser-actions-v1
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:smart-inbox
+      - run: npm run test:browser-actions
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://mkwkljnfaqszvcjzhajn.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+      - run: npx esbuild netlify/functions/staff-browser-action.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-browser-action.mjs
+      - run: |
+          grep -q "staff_web_actions" supabase/migrations/20261011_staff_browser_actions_v1.sql
+          grep -q "allowedDomains" netlify/functions/staff-browser-action.mts
+          grep -q "reservation_phone" netlify/functions/staff-browser-action.mts
