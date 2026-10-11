@@ -1,0 +1,38 @@
+name: Staff Smart Inbox Reconcile CI
+
+on:
+  push:
+    branches:
+      - integration/staff-smart-inbox-main-reconcile
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Smart Inbox tests
+        run: npm run test:smart-inbox
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Web build
+        run: npm run build
+      - name: Bundle document analyzer
+        run: npx esbuild netlify/functions/staff-document-analyze.mts --bundle --platform=node --format=esm --outfile=/tmp/staff-document-analyze.mjs
+      - name: Bundle account deletion
+        run: npx esbuild netlify/functions/delete-account.mts --bundle --platform=node --format=esm --outfile=/tmp/delete-account.mjs
+      - name: Bundle Staff chat
+        run: npx esbuild netlify/functions/staff-chat-v2.js --bundle --platform=node --format=esm --outfile=/tmp/staff-chat-v2.mjs
+      - name: Check Smart Inbox migrations
+        run: |
+          grep -q "staff_financial_entries_fingerprint_unique_idx" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "LINK_FINANCIAL_ENTRY" supabase/migrations/20260910_staff_smart_inbox_v1.sql
+          grep -q "auth.uid()::text = user_id::text" supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
