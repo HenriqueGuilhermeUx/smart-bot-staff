@@ -98,6 +98,12 @@ create table if not exists public.staff_document_actions (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+alter table public.staff_document_actions drop constraint if exists staff_document_actions_action_type_check;
+alter table public.staff_document_actions add constraint staff_document_actions_action_type_check
+  check (action_type in (
+    'REGISTER_EXPENSE','CREATE_REMINDER','SAVE_DOCUMENT','ADD_MEMORY',
+    'LINK_PERSON','LINK_FINANCIAL_ENTRY','ADD_EVENT','IGNORE','CONFIRM','DELETE'
+  ));
 create index if not exists staff_document_actions_user_doc_idx on public.staff_document_actions(user_id, document_id, created_at desc);
 
 create table if not exists public.staff_document_links (
