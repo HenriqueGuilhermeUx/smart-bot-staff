@@ -72,7 +72,10 @@ import { SmartInboxView } from '@/components/staff/SmartInboxView'
 import { FinanceView } from '@/components/staff/FinanceView'
 
 export function StaffWorkspace({ user, onLogout }: { user: any; onLogout: () => void }) {
-  const [screen, setScreen] = useState<StaffScreen>('today')
+  const [screen, setScreen] = useState<StaffScreen>(() => {
+    const requested = new URLSearchParams(window.location.search).get('screen') as StaffScreen | null
+    return requested && ['today','calendar','tasks','chat','more','family','smart-inbox','finance','life','automations','settings'].includes(requested) ? requested : 'today'
+  })
   const [tasks, setTasks] = useState<StaffTask[]>([])
   const [events, setEvents] = useState<StaffEvent[]>([])
   const [automations, setAutomations] = useState<StaffAutomation[]>([])
