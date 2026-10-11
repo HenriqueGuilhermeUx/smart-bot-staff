@@ -747,6 +747,7 @@ export default async (request: Request) => {
         status: finalDiscoveryStatus,
         confirmationKind: resultStatus === 'needs_input' ? 'clarification' : null,
         response: String(result.summary || 'Não encontrei uma reserva compatível com o pedido.'),
+        originalRequest: resultStatus === 'needs_input' ? action.request_text : undefined,
         result,
       })
     }
