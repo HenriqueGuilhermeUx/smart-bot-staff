@@ -136,6 +136,7 @@ export function SmartInboxView({
   const [file, setFile] = useState<File | null>(null)
   const [privacyClass, setPrivacyClass] = useState<StaffDocumentPrivacy | ''>('')
   const [processingConsent, setProcessingConsent] = useState(false)
+  const [selectedProcessingConsent, setSelectedProcessingConsent] = useState(false)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -172,6 +173,7 @@ export function SmartInboxView({
     setPerson('')
     setShowFinancialLink(false)
     setFinancialEntryId('')
+    setSelectedProcessingConsent(Boolean(selected?.external_processing_consent))
   }, [selected?.id])
 
   function replaceDocument(document: StaffDocument) {
@@ -234,6 +236,30 @@ export function SmartInboxView({
       setMessage('Nova análise concluída. Revise os dados.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Não consegui analisar novamente.')
+    } finally { setWorking('') }
+  }
+
+  async function analyzeSaved(document: StaffDocument) {
+    if (!selectedProcessingConsent) {
+      setError('Confirme o consentimento de processamento para analisar este arquivo por IA.')
+      return
+    }
+    setWorking('analyze-saved')
+    setError('')
+    setMessage('Analisando o arquivo salvo...')
+    try {
+      const updated = await analyzeDocument(document.id, true)
+      replaceDocument(updated)
+      setSelectedProcessingConsent(Boolean(updated.external_processing_consent))
+      if (updated.error_code) {
+        setMessage('')
+        setError(updated.error_message || 'A análise ficou bloqueada pela proteção de privacidade.')
+      } else {
+        setMessage('Documento analisado. Confira os dados antes de qualquer ação.')
+      }
+    } catch (caught) {
+      setMessage('')
+      setError(caught instanceof Error ? caught.message : 'Não consegui analisar o arquivo salvo.')
     } finally { setWorking('') }
   }
 
@@ -443,6 +469,7 @@ export function SmartInboxView({
 
             {selected.duplicate_of && <div className="mt-5 p-4 rounded-2xl bg-amber-500/8 border border-amber-500/20 text-sm text-amber-100"><AlertTriangle className="inline w-4 h-4 mr-2" />Este arquivo parece duplicar outro documento do Smart Inbox. O Staff também verifica duplicidade antes de criar uma despesa.</div>}
             {selected.error_message && <div className="mt-5 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-sm text-slate-400">{selected.error_message}{selected.status === 'error' && <button onClick={() => void retry(selected)} className="ml-3 text-purple-300 font-bold"><RefreshCw className="inline w-3.5 h-3.5 mr-1" />Tentar novamente</button>}</div>}
+            {selected.status === 'needs_review' && ['ANALYSIS_NOT_REQUESTED','EXTERNAL_PROCESSING_CONSENT_REQUIRED','SENSITIVE_EXTERNAL_PROCESSING_DISABLED'].includes(selected.error_code || '') && <div className="mt-3 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4"><p className="text-sm font-bold text-purple-200">Analisar este arquivo agora</p><p className="text-xs text-slate-400 mt-1">{selected.privacy_class === 'standard' ? 'O arquivo já está guardado. Autorize o processamento deste arquivo para o Staff extrair os dados por IA.' : 'O arquivo sensível já está guardado. Além do seu consentimento, o servidor precisa estar explicitamente habilitado para processamento externo sensível.'}</p><label className="flex gap-2 mt-3 text-xs text-slate-300"><input type="checkbox" checked={selectedProcessingConsent} onChange={(event) => setSelectedProcessingConsent(event.target.checked)} /><span>{selected.external_processing_consent ? 'Consentimento deste arquivo registrado. Você pode solicitar uma nova tentativa de análise.' : 'Autorizo o processamento externo deste arquivo para realizar a análise por IA.'}</span></label><button onClick={() => void analyzeSaved(selected)} disabled={!selectedProcessingConsent || Boolean(working)} className="btn-purple mt-3 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-35">{working === 'analyze-saved' ? <><Loader2 className="inline w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="inline w-4 h-4 mr-2" />Analisar agora</>}</button></div>}
 
             <div className="mt-6"><p className="text-sm font-black">Encontrei estas informações.</p><p className="text-xs text-slate-600 mt-1">Revise o que importa e confirme antes de agir.</p></div>
             <div className="grid md:grid-cols-2 gap-3 mt-4">

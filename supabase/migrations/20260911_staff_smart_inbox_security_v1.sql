@@ -59,6 +59,16 @@ for insert with check (
     select 1 from public.staff_documents d
     where d.id = document_id and d.user_id::text = auth.uid()::text
   )
+  and (
+    coalesce(target_type, '') <> 'financial_entry'
+    or (
+      target_id is not null
+      and exists (
+        select 1 from public.staff_financial_entries f
+        where f.id::text = target_id and f.user_id::text = auth.uid()::text
+      )
+    )
+  )
 );
 
 create policy "staff_document_actions_update_own" on public.staff_document_actions
@@ -68,6 +78,16 @@ with check (
   and exists (
     select 1 from public.staff_documents d
     where d.id = document_id and d.user_id::text = auth.uid()::text
+  )
+  and (
+    coalesce(target_type, '') <> 'financial_entry'
+    or (
+      target_id is not null
+      and exists (
+        select 1 from public.staff_financial_entries f
+        where f.id::text = target_id and f.user_id::text = auth.uid()::text
+      )
+    )
   )
 );
 
@@ -91,6 +111,16 @@ for insert with check (
     select 1 from public.staff_documents d
     where d.id = document_id and d.user_id::text = auth.uid()::text
   )
+  and (
+    entity_type <> 'financial_entry'
+    or (
+      entity_id is not null
+      and exists (
+        select 1 from public.staff_financial_entries f
+        where f.id::text = entity_id and f.user_id::text = auth.uid()::text
+      )
+    )
+  )
 );
 
 create policy "staff_document_links_update_own" on public.staff_document_links
@@ -100,6 +130,16 @@ with check (
   and exists (
     select 1 from public.staff_documents d
     where d.id = document_id and d.user_id::text = auth.uid()::text
+  )
+  and (
+    entity_type <> 'financial_entry'
+    or (
+      entity_id is not null
+      and exists (
+        select 1 from public.staff_financial_entries f
+        where f.id::text = entity_id and f.user_id::text = auth.uid()::text
+      )
+    )
   )
 );
 

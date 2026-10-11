@@ -146,16 +146,30 @@ export default async (request: Request) => {
     const provider = resolveDocumentProvider(process.env)
     const privacyClass = String(document.privacy_class || 'standard')
     const requestConsent = Boolean(payload.external_processing_consent ?? payload.sensitive_processing_consent)
-    const userConsent = Boolean(document.external_processing_consent && requestConsent)
+    let persistedConsent = Boolean(document.external_processing_consent)
     const serverAllowsSensitive = String(process.env.STAFF_ALLOW_SENSITIVE_EXTERNAL_PROCESSING || '').toLowerCase() === 'true'
 
+    // Consentimento é sempre explícito e por arquivo. Como o documento já foi autenticado
+    // e validado como pertencente ao usuário, uma solicitação positiva pode ser persistida
+    // aqui antes de chamar qualquer provider externo. Isso permite "Guardar sem analisar"
+    // e autorizar a análise somente mais tarde, sem atalhos no frontend.
+    if (provider.external && requestConsent && !persistedConsent) {
+      const consented = await patchDocument(supabaseUrl, secret, user.id, documentId, {
+        external_processing_consent: true,
+      })
+      persistedConsent = Boolean(consented?.external_processing_consent ?? true)
+    }
+
+    const userConsent = provider.external ? persistedConsent : true
+
     if (!canUseExternalProvider({ privacyClass, providerExternal: provider.external, serverAllowsSensitive, userConsent })) {
-      const message = privacyClass === 'standard'
+      const standardDocument = privacyClass === 'standard'
+      const message = standardDocument
         ? 'A análise por provedor externo requer consentimento explícito para este arquivo. O documento continua salvo privadamente e pode ser revisado manualmente.'
         : 'Por privacidade, documentos de identidade e saúde não são enviados a serviços externos sem habilitação do servidor e consentimento explícito. O arquivo foi guardado com segurança para revisão.'
       const updated = await patchDocument(supabaseUrl, secret, user.id, documentId, {
         status: 'needs_review',
-        error_code: 'SENSITIVE_EXTERNAL_PROCESSING_DISABLED',
+        error_code: standardDocument ? 'EXTERNAL_PROCESSING_CONSENT_REQUIRED' : 'SENSITIVE_EXTERNAL_PROCESSING_DISABLED',
         error_message: message,
       })
       return json({ document: updated, analysis_blocked: true, error: message }, 422)

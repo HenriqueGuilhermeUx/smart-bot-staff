@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   buildDocumentFingerprint,
   canUseExternalProvider,
@@ -82,4 +83,17 @@ test('provedor externo exige consentimento e proteção reforçada para identida
   assert.equal(canUseExternalProvider({ privacyClass: 'medical', providerExternal: true, serverAllowsSensitive: true, userConsent: false }), false)
   assert.equal(canUseExternalProvider({ privacyClass: 'identity', providerExternal: true, serverAllowsSensitive: true, userConsent: true }), true)
   assert.equal(canUseExternalProvider({ privacyClass: 'medical', providerExternal: false }), true)
+})
+
+
+test('análise posterior persiste consentimento explícito por arquivo no backend', () => {
+  const source = readFileSync(new URL('../netlify/functions/staff-document-analyze.mts', import.meta.url), 'utf8')
+  assert.match(source, /external_processing_consent:\s*true/)
+  assert.match(source, /EXTERNAL_PROCESSING_CONSENT_REQUIRED/)
+})
+
+test('RLS de vínculos financeiros valida ownership do lançamento alvo', () => {
+  const migration = readFileSync(new URL('../supabase/migrations/20260911_staff_smart_inbox_security_v1.sql', import.meta.url), 'utf8')
+  assert.match(migration, /f\.id::text = entity_id and f\.user_id::text = auth\.uid\(\)::text/)
+  assert.match(migration, /f\.id::text = target_id and f\.user_id::text = auth\.uid\(\)::text/)
 })
