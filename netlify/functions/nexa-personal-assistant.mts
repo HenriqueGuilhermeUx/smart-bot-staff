@@ -26,7 +26,7 @@ type NexaContext = {
 
 type NexaAssistantPayload = {
   mode?: string
-  user?: { id?: string; displayName?: string; email?: string }
+  user?: { id?: string; displayName?: string; email?: string; phone?: string }
   message?: string
   conversationHistory?: Array<{ role?: string; content?: string }>
   context?: NexaContext
@@ -118,7 +118,7 @@ export default async (request: Request) => {
       ok: true,
       status: 'connected',
       service: 'nexa-personal-assistant',
-      bridgeVersion: 'nexa-personal-v3',
+      bridgeVersion: 'nexa-personal-v4',
       knowledgeVersion: NEXA_KNOWLEDGE_VERSION,
       brandSurface: 'nexa',
       engine: 'staff',
@@ -140,6 +140,7 @@ export default async (request: Request) => {
         'nexa_support_knowledge',
         'financial_context_reasoning',
         'next_step_structuring',
+        'web.restaurant.reserve',
       ],
     })
   }
@@ -174,6 +175,7 @@ export default async (request: Request) => {
     'staff.memory.read',
     'staff.memory.write',
     'staff.documents.read_structured',
+    'staff.web.restaurant.reserve',
     'nexa.balance.read',
     'nexa.transactions.read',
     'nexa.payment.prepare',
@@ -189,6 +191,66 @@ export default async (request: Request) => {
 
   const financial = compactFinancialContext(payload.context?.financial)
   const displayName = String(payload.user?.displayName || '').trim().slice(0, 120) || 'cliente Nexa'
+
+  try {
+    const capabilityUrl = new URL('/.netlify/functions/staff-capabilities', request.url).toString()
+    const capabilityResponse = await fetch(capabilityUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+        'X-Staff-Source': 'nexa',
+        'X-Staff-Subject': headerUserId,
+      },
+      body: JSON.stringify({
+        operation: 'route',
+        message,
+        profile: {
+          name: String(payload.user?.displayName || '').trim().slice(0, 160),
+          email: String(payload.user?.email || '').trim().slice(0, 240),
+          phone: String(payload.user?.phone || '').trim().slice(0, 80),
+        },
+      }),
+      signal: AbortSignal.timeout(9000),
+    })
+    const capability = await capabilityResponse.json().catch(() => ({}))
+    if (capabilityResponse.ok && capability?.handled === true) {
+      return json({
+        ok: true,
+        response: String(capability?.response || 'A ação web está em andamento.'),
+        bridgeVersion: 'nexa-personal-v4',
+        knowledgeVersion: NEXA_KNOWLEDGE_VERSION,
+        brandSurface: 'nexa',
+        engine: 'staff',
+        memoryMode: 'progressive_federation',
+        financialContext: 'read_only',
+        paymentPreparation: true,
+        paymentExecution: false,
+        capabilityAction: {
+          actionId: capability?.actionId || null,
+          capability: capability?.capability || 'web.restaurant.reserve',
+          status: capability?.status || null,
+          confirmationKind: capability?.confirmationKind || null,
+          alternatives: Array.isArray(capability?.alternatives) ? capability.alternatives : [],
+        },
+        capabilities: [
+          'conversation',
+          'voice_ready',
+          'life_support',
+          'daily_planning',
+          'nexa_product_knowledge',
+          'nexa_support_knowledge',
+          'financial_context_reasoning',
+          'web.restaurant.reserve',
+        ],
+      })
+    }
+  } catch (error) {
+    console.warn(
+      'nexa-personal-assistant capability route unavailable',
+      error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+    )
+  }
 
   const system = `Você é o Assistente Nexa, um assistente pessoal inteligente para a vida cotidiana integrado ao aplicativo Nexa. O motor interno reutiliza capacidades do Staff, mas para o usuário você faz parte da Nexa.
 
@@ -263,7 +325,7 @@ ESTILO:
     return json({
       ok: true,
       response: content,
-      bridgeVersion: 'nexa-personal-v3',
+      bridgeVersion: 'nexa-personal-v4',
       knowledgeVersion: NEXA_KNOWLEDGE_VERSION,
       brandSurface: 'nexa',
       engine: 'staff',
@@ -279,6 +341,7 @@ ESTILO:
         'nexa_product_knowledge',
         'nexa_support_knowledge',
         'financial_context_reasoning',
+        'web.restaurant.reserve',
       ],
       usage: result?.usage ? {
         promptTokens: Number(result.usage.prompt_tokens || 0),

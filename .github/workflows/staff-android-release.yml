@@ -42,6 +42,9 @@ jobs:
       - name: Test Browser Actions guardrails
         run: npm run test:browser-actions
 
+      - name: Test federated Staff capabilities
+        run: npm run test:capabilities
+
       - name: Type-check application
         run: npm run typecheck
 
@@ -55,6 +58,9 @@ jobs:
           npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
           npx esbuild netlify/functions/staff-document-analyze.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-analyze.mjs
           npx esbuild netlify/functions/staff-browser-action.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-browser-action.mjs
+          npx esbuild netlify/functions/staff-capabilities.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-capabilities.mjs
+          npx esbuild netlify/functions/staff-capabilities-worker.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-capabilities-worker.mjs
+          npx esbuild netlify/functions/nexa-personal-assistant.mts --platform=node --format=esm --bundle --outfile=/tmp/nexa-personal-assistant.mjs
           npx esbuild netlify/functions/_shared/document-providers.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-providers.mjs
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
           npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
@@ -75,7 +81,10 @@ jobs:
           grep -q "staff_web_actions" supabase/migrations/20261011_staff_browser_actions_v1.sql
           grep -q "secretBindings" netlify/functions/staff-browser-action.mts
           grep -q "api/v4" netlify/functions/staff-browser-action.mts\n          grep -q "reservation_phone" netlify/functions/staff-browser-action.mts
-          echo "Smart Inbox e Browser Actions: backend, privacidade, ownership e guardrails presentes."
+          grep -q "external_subject_id" supabase/migrations/20261012_staff_capabilities_gateway_v1.sql
+          grep -q "web.restaurant.reserve" netlify/functions/staff-capabilities.mts
+          grep -q "web.appointment.search" netlify/functions/staff-capabilities.mts
+          echo "Smart Inbox, Browser Actions e Capabilities Gateway: backend, privacidade, ownership e guardrails presentes."
 
       - name: Reject legacy Nexa access gate
         run: |
@@ -205,5 +214,6 @@ jobs:
             supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
             supabase/migrations/20261011_staff_smart_inbox_final_hardening_v2.sql
             supabase/migrations/20261011_staff_browser_actions_v1.sql
+            supabase/migrations/20261012_staff_capabilities_gateway_v1.sql
           if-no-files-found: error
           retention-days: 30
