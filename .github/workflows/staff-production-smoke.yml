@@ -1,0 +1,24 @@
+name: Staff production smoke
+
+on:
+  push:
+    branches:
+      - ops/staff-production-smoke
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production homepage
+        run: |
+          curl --fail --silent --show-error --location https://app.smartbots.club/ > /tmp/staff-home.html
+          grep -qi "<html" /tmp/staff-home.html
+
+      - name: Check Browser Actions production health
+        run: |
+          curl --fail --silent --show-error https://app.smartbots.club/.netlify/functions/staff-browser-action > /tmp/browser-health.json
+          node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/browser-health.json','utf8')); if(x.status!=='ok'||x.service!=='staff-browser-action'||x.browserApi!=='v4'||x.browserUseConfigured!==true){console.error(x); process.exit(1)}; console.log('Staff Browser Actions production health: PASS')"
