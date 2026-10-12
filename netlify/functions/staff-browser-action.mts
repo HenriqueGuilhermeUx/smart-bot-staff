@@ -468,6 +468,15 @@ function profileComplete(profile: any, email: string) {
 }
 
 export default async (request: Request) => {
+  if (request.method === 'GET') {
+    return json(200, {
+      status: 'ok',
+      service: 'staff-browser-action',
+      browserUseConfigured: Boolean(env('BROWSER_USE_API_KEY')),
+      browserApi: 'v4',
+    })
+  }
+
   if (request.method !== 'POST') return json(405, { error: 'Método não permitido.' })
 
   try {
