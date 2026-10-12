@@ -14,6 +14,14 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Test Browser Actions
+        run: npm run test:browser-actions
+      - name: Test federated Staff capabilities
+        run: npm run test:capabilities
       - run: npm run build
-      - name: Bundle NexOffice Staff bridge
-        run: npx esbuild netlify/functions/nexoffice-assistant.mts --bundle --platform=node --format=esm --outfile=/tmp/nexoffice-assistant.mjs
+      - name: Bundle Staff bridges and capabilities
+        run: |
+          npx esbuild netlify/functions/nexoffice-assistant.mts --bundle --platform=node --format=esm --outfile=/tmp/nexoffice-assistant.mjs
+          npx esbuild netlify/functions/nexa-personal-assistant.mts --bundle --platform=node --format=esm --outfile=/tmp/nexa-personal-assistant.mjs
+          npx esbuild netlify/functions/staff-capabilities.mts --bundle --platform=node --format=esm --outfile=/tmp/staff-capabilities.mjs
+          npx esbuild netlify/functions/staff-capabilities-worker.mts --bundle --platform=node --format=esm --outfile=/tmp/staff-capabilities-worker.mjs
