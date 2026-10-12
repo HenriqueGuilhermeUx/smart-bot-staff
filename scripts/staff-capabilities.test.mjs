@@ -18,7 +18,8 @@ test('Nexa reuses the existing service bridge and restaurant capability', () => 
 })
 
 test('Nexa booking requires explicit confirmation and protected contact bindings', () => {
-  assert.match(gateway, /confirmationKind: 'confirm_booking'/)
+  assert.match(worker, /confirmationKind: 'confirm_booking'/)
+  assert.match(gateway, /kind === 'confirm_booking'/)
   assert.match(gateway, /responda “sim”/)
   assert.match(core, /secretBindings/)
   assert.match(core, /allowedDomains/)
