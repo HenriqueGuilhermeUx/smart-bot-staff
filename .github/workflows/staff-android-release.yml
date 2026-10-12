@@ -39,6 +39,9 @@ jobs:
       - name: Test Smart Inbox core
         run: npm run test:smart-inbox
 
+      - name: Test Browser Actions guardrails
+        run: npm run test:browser-actions
+
       - name: Type-check application
         run: npm run typecheck
 
@@ -51,6 +54,7 @@ jobs:
           node --check functions/staff-study.js
           npx esbuild netlify/functions/staff-study.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-study.mjs
           npx esbuild netlify/functions/staff-document-analyze.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-analyze.mjs
+          npx esbuild netlify/functions/staff-browser-action.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-browser-action.mjs
           npx esbuild netlify/functions/_shared/document-providers.mts --platform=node --format=esm --bundle --outfile=/tmp/staff-document-providers.mjs
           npx esbuild netlify/functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account.mjs
           npx esbuild functions/delete-account.mts --platform=node --format=esm --bundle --outfile=/tmp/delete-account-legacy.mjs
@@ -68,7 +72,10 @@ jobs:
           grep -q "staff_memories_insert_own" supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
           grep -q "SENSITIVE_EXTERNAL_PROCESSING_DISABLED" netlify/functions/staff-document-analyze.mts
           grep -q "Fonte documental" netlify/functions/staff-chat-v2.js
-          echo "Smart Inbox backend, privacidade, ownership e memória documental presentes."
+          grep -q "staff_web_actions" supabase/migrations/20261011_staff_browser_actions_v1.sql
+          grep -q "secretBindings" netlify/functions/staff-browser-action.mts
+          grep -q "api/v4" netlify/functions/staff-browser-action.mts\n          grep -q "reservation_phone" netlify/functions/staff-browser-action.mts
+          echo "Smart Inbox e Browser Actions: backend, privacidade, ownership e guardrails presentes."
 
       - name: Reject legacy Nexa access gate
         run: |
@@ -196,5 +203,7 @@ jobs:
           path: |
             supabase/migrations/20260910_staff_smart_inbox_v1.sql
             supabase/migrations/20260911_staff_smart_inbox_security_v1.sql
+            supabase/migrations/20261011_staff_smart_inbox_final_hardening_v2.sql
+            supabase/migrations/20261011_staff_browser_actions_v1.sql
           if-no-files-found: error
           retention-days: 30

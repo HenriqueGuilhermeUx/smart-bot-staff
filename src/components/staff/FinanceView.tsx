@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleDollarSign, FileText, Loader2, RefreshCw, WalletCards } from 'lucide-react'
-import { loadFinancialEntries, type StaffFinancialEntry } from '@/lib/staffDocuments'
+import { CircleDollarSign, FileText, Loader2, RefreshCw, Trash2, WalletCards } from 'lucide-react'
+import { deleteFinancialEntry, loadFinancialEntries, type StaffFinancialEntry } from '@/lib/staffDocuments'
 
 function money(value: number, currency = 'BRL') {
   try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value) }
@@ -20,6 +20,17 @@ export function FinanceView({ userId }: { userId: string }) {
   }
 
   useEffect(() => { void refresh() }, [userId])
+
+  async function removeEntry(entry: StaffFinancialEntry) {
+    if (!window.confirm(`Excluir o lançamento “${entry.description}”? O documento de origem continuará salvo no Smart Inbox.`)) return
+    setError('')
+    try {
+      await deleteFinancialEntry(userId, entry)
+      setEntries((current) => current.filter((item) => item.id !== entry.id))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Não consegui excluir o lançamento.')
+    }
+  }
 
   const month = useMemo(() => {
     const now = new Date()
@@ -41,7 +52,7 @@ export function FinanceView({ userId }: { userId: string }) {
 
       <section className="rounded-3xl border border-slate-800 bg-slate-950/60 overflow-hidden">
         <div className="p-5 border-b border-slate-800"><h2 className="font-black">Lançamentos</h2></div>
-        {loading ? <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin text-purple-300 mx-auto" /></div> : entries.length ? <div className="divide-y divide-slate-800">{entries.map((entry) => <div key={entry.id} className="p-4 md:p-5 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-900 grid place-items-center shrink-0">{entry.source_document_id ? <FileText className="w-4 h-4 text-purple-300" /> : <CircleDollarSign className="w-4 h-4 text-slate-400" />}</div><div className="min-w-0 flex-1"><p className="font-bold truncate">{entry.description}</p><p className="text-xs text-slate-600 mt-1">{new Date(`${entry.occurred_on}T12:00:00`).toLocaleDateString('pt-BR')} · {entry.category}{entry.merchant ? ` · ${entry.merchant}` : ''}</p></div><div className="text-right"><p className="font-black text-rose-200">− {money(Number(entry.amount), entry.currency)}</p>{entry.source_document_id && <p className="text-[10px] text-purple-300 mt-1">via Smart Inbox</p>}</div></div>)}</div> : <div className="p-12 text-center"><CircleDollarSign className="w-10 h-10 text-slate-700 mx-auto" /><p className="font-bold text-slate-400 mt-3">Nenhum lançamento ainda</p><p className="text-sm text-slate-600 mt-1">Envie um recibo ou nota ao Smart Inbox e confirme a despesa.</p></div>}
+        {loading ? <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin text-purple-300 mx-auto" /></div> : entries.length ? <div className="divide-y divide-slate-800">{entries.map((entry) => <div key={entry.id} className="p-4 md:p-5 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-900 grid place-items-center shrink-0">{entry.source_document_id ? <FileText className="w-4 h-4 text-purple-300" /> : <CircleDollarSign className="w-4 h-4 text-slate-400" />}</div><div className="min-w-0 flex-1"><p className="font-bold truncate">{entry.description}</p><p className="text-xs text-slate-600 mt-1">{new Date(`${entry.occurred_on}T12:00:00`).toLocaleDateString('pt-BR')} · {entry.category}{entry.merchant ? ` · ${entry.merchant}` : ''}</p></div><div className="text-right"><p className="font-black text-rose-200">− {money(Number(entry.amount), entry.currency)}</p>{entry.source_document_id && <p className="text-[10px] text-purple-300 mt-1">via Smart Inbox</p>}<button onClick={() => void removeEntry(entry)} className="mt-2 p-1.5 rounded-lg text-slate-700 hover:text-rose-300" aria-label="Excluir lançamento"><Trash2 className="w-3.5 h-3.5" /></button></div></div>)}</div> : <div className="p-12 text-center"><CircleDollarSign className="w-10 h-10 text-slate-700 mx-auto" /><p className="font-bold text-slate-400 mt-3">Nenhum lançamento ainda</p><p className="text-sm text-slate-600 mt-1">Envie um recibo ou nota ao Smart Inbox e confirme a despesa.</p></div>}
       </section>
     </div>
   )

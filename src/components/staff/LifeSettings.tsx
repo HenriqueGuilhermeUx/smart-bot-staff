@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   AlertTriangle,
   Bell,
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   FileText,
   GraduationCap,
+  Globe2,
   Heart,
   Home,
   Link,
@@ -16,6 +17,7 @@ import {
   Mic2,
   PartyPopper,
   Shield,
+  Save,
   Target,
   Trash2,
   TrendingUp,
@@ -28,6 +30,7 @@ import { cn } from '@/lib/staffUi'
 import type { VoiceResponseMode } from '@/lib/staffVoice'
 import { supabase } from '@/lib/supabase'
 import { LegalFooter } from '@/components/staff/LegalFooter'
+import { loadStaffWebProfile, saveStaffWebProfile } from '@/lib/staffWebProfile'
 
 const LIFE_AREAS = [
   { id: 'financas', label: 'Finanças', description: 'Contas, boletos e gastos', icon: Wallet },
@@ -85,6 +88,54 @@ export function SettingsView({
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [webProfileLoading, setWebProfileLoading] = useState(true)
+  const [webProfileSaving, setWebProfileSaving] = useState(false)
+  const [webProfileMessage, setWebProfileMessage] = useState('')
+  const [reservationName, setReservationName] = useState('')
+  const [reservationPhone, setReservationPhone] = useState('')
+  const [webActionsEnabled, setWebActionsEnabled] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadWebProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || !mounted) return
+        const profile = await loadStaffWebProfile(user.id)
+        if (!mounted) return
+        setReservationName(profile?.reservation_name || profile?.display_name || user.user_metadata?.name || '')
+        setReservationPhone(profile?.reservation_phone || '')
+        setWebActionsEnabled(profile?.web_actions_enabled ?? true)
+      } catch {
+        if (mounted) setWebProfileMessage('Não consegui carregar seus dados de reserva.')
+      } finally {
+        if (mounted) setWebProfileLoading(false)
+      }
+    }
+
+    void loadWebProfile()
+    return () => { mounted = false }
+  }, [])
+
+  async function saveWebProfile() {
+    setWebProfileSaving(true)
+    setWebProfileMessage('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Sua sessão expirou.')
+      await saveStaffWebProfile(user.id, {
+        reservation_name: reservationName,
+        reservation_phone: reservationPhone,
+        web_actions_enabled: webActionsEnabled,
+      })
+      setWebProfileMessage('Dados para reservas salvos.')
+    } catch (error) {
+      setWebProfileMessage(error instanceof Error ? error.message : 'Não consegui salvar.')
+    } finally {
+      setWebProfileSaving(false)
+    }
+  }
 
   async function deleteAccount() {
     if (deleteConfirmation.trim().toUpperCase() !== 'EXCLUIR') {
@@ -159,6 +210,71 @@ export function SettingsView({
             <option value="always">Sempre</option>
             <option value="never">Nunca</option>
           </select>
+        </div>
+
+        <div className="glass-card p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0"><Globe2 className="w-5 h-5 text-emerald-300" /></div>
+            <div className="flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-white">Ações na web</p>
+                  <p className="text-sm text-slate-500 mt-1">O Staff pode procurar disponibilidade e fazer reservas simples de restaurantes por você.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWebActionsEnabled((value) => !value)}
+                  disabled={webProfileLoading}
+                  className={cn('px-3 py-2 rounded-xl text-xs border', webActionsEnabled ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-slate-900 text-slate-500 border-slate-800')}
+                >
+                  {webActionsEnabled ? 'Ativadas' : 'Desativadas'}
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                <label>
+                  <span className="text-xs text-slate-400">Nome para reservas</span>
+                  <input
+                    value={reservationName}
+                    onChange={(event) => setReservationName(event.target.value)}
+                    disabled={webProfileLoading || webProfileSaving}
+                    className="mt-1.5 w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white outline-none focus:border-purple-500"
+                    placeholder="Seu nome"
+                    autoComplete="name"
+                  />
+                </label>
+                <label>
+                  <span className="text-xs text-slate-400">Telefone para reservas</span>
+                  <input
+                    value={reservationPhone}
+                    onChange={(event) => setReservationPhone(event.target.value)}
+                    disabled={webProfileLoading || webProfileSaving}
+                    className="mt-1.5 w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white outline-none focus:border-purple-500"
+                    placeholder="+55..."
+                    autoComplete="tel"
+                    inputMode="tel"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400">
+                O e-mail da sua conta é usado como contato. O Staff não envia cartão, senha, OTP ou dados bancários ao navegador. Se a reserva exigir pagamento ou login, ele para antes.
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => void saveWebProfile()}
+                  disabled={webProfileLoading || webProfileSaving || !reservationName.trim() || !reservationPhone.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {webProfileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Salvar dados para reservas
+                </button>
+                {webProfileMessage && <p className="text-xs text-slate-400">{webProfileMessage}</p>}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="glass-card p-5 flex items-center justify-between gap-4">

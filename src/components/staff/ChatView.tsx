@@ -7,6 +7,15 @@ import { parseStaffCommand } from '@/lib/staffParser'
 import { cn, formatDateTime, type StaffScreen } from '@/lib/staffUi'
 import { speakStaffResponse } from '@/lib/staffVoice'
 import { VoiceButton } from '@/components/staff/VoiceButton'
+import {
+  cancelBrowserAction,
+  continueBrowserAction,
+  getBrowserActionStatus,
+  restaurantReservationIntent,
+  startBrowserAction,
+  StaffBrowserActionError,
+  type BrowserActionResponse,
+} from '@/lib/staffBrowserActions'
 
 function normalizeCommand(text: string) {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
@@ -14,6 +23,17 @@ function normalizeCommand(text: string) {
 
 function sameDay(value: string | Date, target: Date) {
   return new Date(value).toDateString() === target.toDateString()
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+type PendingBrowserAction = {
+  actionId: string
+  mode: 'alternative_time' | 'clarification' | 'running'
+  alternatives?: string[]
+  originalRequest?: string
 }
 
 function navigationFromCommand(text: string): StaffScreen | null {
@@ -89,6 +109,8 @@ export function ChatView({
 }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingLabel, setLoadingLabel] = useState('Pensando...')
+  const [pendingBrowserAction, setPendingBrowserAction] = useState<PendingBrowserAction | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -106,6 +128,149 @@ export function ChatView({
     void speakStaffResponse(content, fromVoice)
   }
 
+  async function pollBrowserAction(actionId: string) {
+    let last: BrowserActionResponse = { actionId, status: 'running' }
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      await wait(1500)
+      last = await getBrowserActionStatus(actionId)
+      if (last.status !== 'running') return last
+      setLoadingLabel(last.phase === 'booking' ? 'Agindo na web: concluindo a reserva...' : 'Agindo na web: verificando disponibilidade...')
+    }
+    return last
+  }
+
+  async function addReservationToAgenda(result: BrowserActionResponse) {
+    const reservation = result.reservation
+    if (!reservation?.startAt) return false
+    const start = new Date(reservation.startAt)
+    if (Number.isNaN(start.getTime())) return false
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000)
+    const restaurant = reservation.restaurant || 'Restaurante'
+    const details = [
+      'Reserva realizada pelo Staff na web.',
+      reservation.bookingReference ? `Código: ${reservation.bookingReference}` : '',
+      reservation.provider ? `Provedor: ${reservation.provider}` : '',
+    ].filter(Boolean).join(' ')
+
+    await onEventCreated({
+      title: `Reserva — ${restaurant}`,
+      description: details,
+      category: 'eventos',
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      location: reservation.location || null,
+      source: 'integration',
+      reminder_minutes: [120, 30],
+    })
+    return true
+  }
+
+  async function finishBrowserAction(
+    result: BrowserActionResponse,
+    currentMessages: StaffMessage[],
+    fromVoice: boolean,
+  ) {
+    if (result.status === 'completed') {
+      setPendingBrowserAction(null)
+      let agendaNote = ''
+      try {
+        if (result.reservation?.status === 'booked' && await addReservationToAgenda(result)) {
+          agendaNote = '\n\nTambém coloquei a reserva na sua Agenda.'
+        }
+      } catch {
+        agendaNote = '\n\nA reserva foi concluída, mas não consegui adicioná-la à Agenda automaticamente.'
+      }
+      const reference = result.reservation?.bookingReference
+        ? `\nCódigo da reserva: ${result.reservation.bookingReference}`
+        : ''
+      await answer(currentMessages, `${result.response || 'Reserva concluída.'}${reference}${agendaNote}`, fromVoice)
+      return
+    }
+
+    if (result.status === 'needs_confirmation' && result.confirmationKind === 'alternative_time') {
+      const alternatives = result.alternatives || []
+      setPendingBrowserAction({ actionId: result.actionId || '', mode: 'alternative_time', alternatives })
+      const choices = alternatives.length ? `\n\nOpções: ${alternatives.join(' · ')}\nMe diga qual horário você quer.` : ''
+      await answer(currentMessages, `${result.response || 'O horário pedido não está disponível.'}${choices}`, fromVoice)
+      return
+    }
+
+    if (result.status === 'needs_confirmation' && result.confirmationKind === 'clarification') {
+      setPendingBrowserAction({
+        actionId: result.actionId || '',
+        mode: 'clarification',
+        originalRequest: result.originalRequest || '',
+      })
+      await answer(
+        currentMessages,
+        result.response || 'Preciso de mais alguns dados para continuar a reserva. Pode me responder normalmente.',
+        fromVoice,
+      )
+      return
+    }
+
+    if (result.status === 'needs_confirmation' && result.confirmationKind === 'manual_takeover') {
+      setPendingBrowserAction(null)
+      await answer(
+        currentMessages,
+        `${result.response || 'Cheguei a uma etapa que precisa de você.'}\n\nParei antes de pagamento, login, OTP, cartão ou outro passo sensível.`,
+        fromVoice,
+      )
+      return
+    }
+
+    if (result.status === 'needs_confirmation') {
+      setPendingBrowserAction(null)
+      await answer(currentMessages, result.response || 'Preciso da sua confirmação para continuar.', fromVoice)
+      return
+    }
+
+    if (result.status === 'needs_profile') {
+      setPendingBrowserAction(null)
+      await answer(currentMessages, result.response || 'Complete seus dados para reservas em Configurações.', fromVoice)
+      onNavigate('settings')
+      return
+    }
+
+    if (result.status === 'running' && result.actionId) {
+      setPendingBrowserAction({ actionId: result.actionId, mode: 'running' })
+      await answer(currentMessages, 'A reserva ainda está sendo processada. Diga “continuar reserva” para eu atualizar o andamento.', fromVoice)
+      return
+    }
+
+    setPendingBrowserAction(null)
+    await answer(currentMessages, result.response || 'Não consegui concluir essa reserva.', fromVoice)
+  }
+
+  async function runBrowserReservation(
+    requestText: string,
+    currentMessages: StaffMessage[],
+    fromVoice: boolean,
+  ) {
+    setLoadingLabel('Agindo na web: procurando o restaurante e a disponibilidade...')
+    try {
+      const started = await startBrowserAction(requestText)
+      if (!started.actionId) throw new Error('A ação web não retornou um identificador.')
+      const result = started.status === 'running' ? await pollBrowserAction(started.actionId) : started
+      await finishBrowserAction(result, currentMessages, fromVoice)
+    } catch (error) {
+      if (error instanceof StaffBrowserActionError) {
+        if (error.code === 'RESERVATION_PROFILE_INCOMPLETE') {
+          await answer(currentMessages, 'Antes da primeira reserva, salve seu nome e telefone em Configurações → Ações na web. O e-mail já vem da sua conta.', fromVoice)
+          onNavigate('settings')
+          return
+        }
+        if (error.code === 'BROWSER_USE_NOT_CONFIGURED') {
+          await answer(currentMessages, 'A função de agir na web já está preparada no Staff, mas o provedor de navegador ainda não foi ativado neste ambiente.', fromVoice)
+          return
+        }
+        await answer(currentMessages, error.message, fromVoice)
+        return
+      }
+      await answer(currentMessages, error instanceof Error ? error.message : 'Não consegui executar essa reserva na web.', fromVoice)
+    }
+  }
+
   async function processText(textValue: string, fromVoice = false) {
     const text = textValue.trim()
     if (!text || loading) return
@@ -117,6 +282,40 @@ export function ChatView({
 
     try {
       const normalized = normalizeCommand(text)
+      setLoadingLabel('Pensando...')
+
+      if (pendingBrowserAction && /^(cancelar|cancela|pare|parar)( a)? reserva/.test(normalized)) {
+        await cancelBrowserAction(pendingBrowserAction.actionId)
+        setPendingBrowserAction(null)
+        await answer(currentMessages, 'Reserva cancelada. Não vou continuar essa ação na web.', fromVoice)
+        return
+      }
+
+      if (pendingBrowserAction?.mode === 'alternative_time' && /\b\d{1,2}(?::\d{2}|h\d{0,2})\b/.test(normalized)) {
+        setLoadingLabel('Agindo na web: tentando o horário escolhido...')
+        const continued = await continueBrowserAction(pendingBrowserAction.actionId, text)
+        const result = continued.status === 'running' ? await pollBrowserAction(pendingBrowserAction.actionId) : continued
+        await finishBrowserAction(result, currentMessages, fromVoice)
+        return
+      }
+
+      if (pendingBrowserAction?.mode === 'running' && /(continuar|status|andamento|como esta|reserva)/.test(normalized)) {
+        setLoadingLabel('Agindo na web: verificando o andamento...')
+        const result = await pollBrowserAction(pendingBrowserAction.actionId)
+        await finishBrowserAction(result, currentMessages, fromVoice)
+        return
+      }
+
+      if (pendingBrowserAction?.mode === 'clarification') {
+        const previous = pendingBrowserAction.originalRequest?.trim()
+        setPendingBrowserAction(null)
+        const combinedRequest = previous
+          ? `${previous}\nComplemento do usuário: ${text}`
+          : `Continue a reserva anterior com estas informações do usuário: ${text}`
+        await runBrowserReservation(combinedRequest, currentMessages, fromVoice)
+        return
+      }
+
       const navigation = navigationFromCommand(text)
 
       if (navigation) {
@@ -129,6 +328,11 @@ export function ChatView({
       if (smartInboxVoiceIntent(text)) {
         await answer(currentMessages, 'Abrindo o Smart Inbox. Mostre ou escolha o documento; eu vou extrair os dados e você confirma antes de eu registrar despesa, criar lembrete ou executar outra ação.', fromVoice)
         onNavigate('smart-inbox')
+        return
+      }
+
+      if (restaurantReservationIntent(text)) {
+        await runBrowserReservation(text, currentMessages, fromVoice)
         return
       }
 
@@ -227,8 +431,19 @@ export function ChatView({
       })
       const data = await response.json()
       await answer(currentMessages, data.response || 'Entendi. Como você gostaria que eu organizasse isso?', fromVoice)
-    } catch {
-      await answer(currentMessages, 'Tive um problema ao responder agora. Sua mensagem foi salva; tente novamente em instantes.', fromVoice)
+    } catch (error) {
+      if (error instanceof StaffBrowserActionError) {
+        if (error.code === 'RESERVATION_PROFILE_INCOMPLETE') {
+          await answer(currentMessages, 'Encontrei o caminho da reserva, mas antes de concluir salve seu nome e telefone em Configurações → Ações na web.', fromVoice)
+          onNavigate('settings')
+        } else if (error.code === 'BROWSER_USE_NOT_CONFIGURED') {
+          await answer(currentMessages, 'A execução web está pronta no Staff, mas o provedor de navegador ainda não foi ativado neste ambiente.', fromVoice)
+        } else {
+          await answer(currentMessages, error.message, fromVoice)
+        }
+      } else {
+        await answer(currentMessages, 'Tive um problema ao responder agora. Sua mensagem foi salva; tente novamente em instantes.', fromVoice)
+      }
     } finally {
       setLoading(false)
     }
@@ -258,8 +473,8 @@ export function ChatView({
             <p className="text-slate-500 max-w-md mt-2">Fale ou digite para criar compromissos, tarefas, analisar documentos, consultar finanças e organizar sua vida.</p>
             <div className="flex flex-wrap justify-center gap-2 mt-5">
               {[
+                'Reserve uma mesa amanhã às 20h para 2 pessoas',
                 'Abra o Smart Inbox',
-                'Agende reunião amanhã às 10h e me avise 30 minutos antes',
                 'O que eu tenho hoje?',
               ].map((suggestion) => (
                 <button key={suggestion} onClick={() => setInput(suggestion)} className="px-3 py-2 rounded-full bg-slate-900 border border-slate-800 text-sm text-slate-400 hover:text-purple-200">{suggestion}</button>
@@ -281,13 +496,13 @@ export function ChatView({
               </div>
             </div>
           ))}
-          {loading && <div className="flex justify-start"><div className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 flex items-center gap-2 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /> Pensando...</div></div>}
+          {loading && <div className="flex justify-start"><div className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 flex items-center gap-2 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /> {loadingLabel}</div></div>}
           <div ref={endRef} />
         </div>
       </div>
       <form onSubmit={submit} className="mt-3 glass-card p-2 flex gap-2">
         <MessageCircle className="w-5 h-5 text-slate-600 self-center ml-2 hidden sm:block" />
-        <input value={input} onChange={(event) => setInput(event.target.value)} disabled={loading} className="flex-1 px-2 bg-transparent text-white outline-none min-w-0" placeholder="Fale ou digite: lança essa nota, agende consulta..." />
+        <input value={input} onChange={(event) => setInput(event.target.value)} disabled={loading} className="flex-1 px-2 bg-transparent text-white outline-none min-w-0" placeholder="Fale ou digite: reserve uma mesa, lança essa nota..." />
         <VoiceButton disabled={loading} onTranscript={(text) => processText(text, true)} />
         <button disabled={!input.trim() || loading} className="btn-purple w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>

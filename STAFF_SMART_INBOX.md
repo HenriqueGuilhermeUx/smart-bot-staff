@@ -102,6 +102,8 @@ Antes do upload o usuário deve classificar o arquivo como:
 - identidade;
 - saúde.
 
+Qualquer envio a provider externo exige consentimento explícito por arquivo. O usuário também pode escolher **Guardar sem analisar**.
+
 `identity` e `medical` **não são enviados a provider externo por padrão**. Para permitir o processamento externo precisam existir simultaneamente:
 
 1. `STAFF_ALLOW_SENSITIVE_EXTERNAL_PROCESSING=true` no servidor; e
@@ -160,13 +162,14 @@ Antes de criar um lançamento financeiro, o frontend verifica:
 - `duplicate_of` detectado no Smart Inbox;
 - `dedupe_fingerprint`.
 
-Se já existir lançamento correspondente, informa o usuário e não duplica a despesa.
+Se já existir lançamento correspondente, informa o usuário e não duplica a despesa. O banco também mantém índices únicos por documento e fingerprint, protegendo contra cliques concorrentes ou repetidos.
 
 ## Smart Actions
 
 Após revisar e confirmar os dados:
 
 - **Registrar despesa** — cria `staff_financial_entries` para recibo/nota/comprovante;
+- **Vincular a lançamento** — comprovantes bancários podem ser associados a um lançamento financeiro já existente, sem duplicá-lo;
 - **Criar lembrete** — reutiliza `staff_tasks` + notificações atuais;
 - **Salvar documento** — arquiva o documento;
 - **Adicionar à memória** — usa `staff_memories` com `source_document_id`;
