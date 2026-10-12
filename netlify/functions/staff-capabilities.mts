@@ -11,9 +11,9 @@ import {
 import {
   countRecentFederatedActions,
   env,
+  findLatestFederatedAction,
   findPendingFederatedAction,
   insertFederatedAction,
-  staffStoreConfig,
   updateFederatedAction,
   type CapabilityActionRow,
 } from './_shared/staff-capability-store.mts'
@@ -143,12 +143,13 @@ function publicAction(action: CapabilityActionRow) {
 }
 
 async function invokeWorker(request: Request, action: CapabilityActionRow) {
-  const { serviceKey } = staffStoreConfig()
+  const internalKey = env('STAFF_CAPABILITIES_INTERNAL_KEY') || env('STAFF_NEXA_SERVICE_KEY')
+  if (!internalKey) throw new Error('CAPABILITY_WORKER_NOT_CONFIGURED')
   const origin = new URL(request.url).origin
   const response = await fetch(`${origin}/.netlify/functions/staff-capabilities-worker`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${serviceKey}`,
+      Authorization: `Bearer ${internalKey}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -218,17 +219,36 @@ async function continueNexaRestaurant(
     return { handled: true, ...publicAction(action) }
   }
 
+  const kind = String(action.result_json?.confirmationKind || '')
+  const discovery = (action.result_json?.discovery || {}) as Record<string, unknown>
+
   if (action.status === 'needs_profile') {
+    const profileReady = Boolean(
+      String(profile?.name || '').trim()
+      && String(profile?.email || '').trim()
+      && String(profile?.phone || '').trim(),
+    )
+    if (!profileReady) {
+      return {
+        handled: true,
+        actionId: action.id,
+        status: 'needs_profile',
+        response: 'Encontrei a reserva, mas ainda preciso de nome, e-mail e telefone cadastrados na Nexa para preencher o contato.',
+      }
+    }
+
+    await updateFederatedAction(action.id, {
+      status: 'needs_confirmation',
+      result_summary: action.result_summary || 'Seu perfil está completo e a reserva está pronta para confirmação.',
+    })
     return {
       handled: true,
       actionId: action.id,
-      status: 'needs_profile',
-      response: 'Encontrei a reserva, mas ainda preciso de nome, e-mail e telefone cadastrados na Nexa para preencher o contato.',
+      status: 'needs_confirmation',
+      confirmationKind: kind || 'confirm_booking',
+      response: 'Seu perfil já está completo. Se quiser que eu conclua a reserva, responda “sim”.',
     }
   }
-
-  const kind = String(action.result_json?.confirmationKind || '')
-  const discovery = (action.result_json?.discovery || {}) as Record<string, unknown>
 
   if (kind === 'manual_takeover') {
     return { handled: true, ...publicAction(action) }
@@ -275,13 +295,14 @@ async function continueNexaRestaurant(
     }
   }
 
+  let selectedTime: string | null = null
   if (kind === 'alternative_time') {
     const alternatives = Array.isArray(discovery.alternatives)
       ? discovery.alternatives.map((item) => String(item))
       : []
     const normalized = normalize(message)
-    const selected = alternatives.find((item) => normalized.includes(normalize(item)))
-    if (!selected) {
+    selectedTime = alternatives.find((item) => normalized.includes(normalize(item))) || null
+    if (!selectedTime) {
       return {
         handled: true,
         ...publicAction(action),
@@ -307,7 +328,6 @@ async function continueNexaRestaurant(
     }
   }
 
-  const selectedTime = kind === 'alternative_time' ? message : null
   const run = await startRestaurantBooking(
     action.request_text,
     discovery,
@@ -347,6 +367,12 @@ async function routeNexa(
 ) {
   const pending = await findPendingFederatedAction('nexa', subjectId, 'web.restaurant.reserve')
   if (pending) return continueNexaRestaurant(request, pending, message, profile)
+
+  if (looksLikeStatusRequest(message)) {
+    const latest = await findLatestFederatedAction('nexa', subjectId, 'web.restaurant.reserve', 2)
+    if (latest) return { handled: true, ...publicAction(latest) }
+  }
+
   if (!looksLikeRestaurantReservation(message)) return { handled: false }
   return startNexaRestaurant(request, subjectId, message)
 }
@@ -372,7 +398,7 @@ async function invokeHealthAppointmentSearch(
   }
 
   const run = await startAppointmentSearch(message)
-  const waited = await waitForRun(run.runId, 52_000)
+  const waited = await waitForRun(run.runId, 48_000)
   await cleanupBrowserSession(run.sessionId)
 
   if (waited.status !== 'completed') {
