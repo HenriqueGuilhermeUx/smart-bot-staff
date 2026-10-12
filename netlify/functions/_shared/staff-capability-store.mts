@@ -115,6 +115,31 @@ export async function findPendingFederatedAction(
   return Array.isArray(rows) ? (rows[0] as CapabilityActionRow | undefined) || null : null
 }
 
+export async function findLatestFederatedAction(
+  sourceApp: string,
+  subjectId: string,
+  capability?: string,
+  hours = 2,
+) {
+  const { supabaseUrl, serviceKey } = staffStoreConfig()
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+  const params = new URLSearchParams({
+    source_app: `eq.${sourceApp}`,
+    external_subject_id: `eq.${subjectId}`,
+    created_at: `gte.${since}`,
+    select: '*',
+    order: 'created_at.desc',
+    limit: '1',
+  })
+  if (capability) params.set('capability', `eq.${capability}`)
+  const response = await fetch(`${supabaseUrl}/rest/v1/staff_web_actions?${params}`, {
+    headers: serviceHeaders(serviceKey),
+  })
+  if (!response.ok) return null
+  const rows = await response.json()
+  return Array.isArray(rows) ? (rows[0] as CapabilityActionRow | undefined) || null : null
+}
+
 export async function countRecentFederatedActions(sourceApp: string, subjectId: string, hours = 24) {
   const { supabaseUrl, serviceKey } = staffStoreConfig()
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
