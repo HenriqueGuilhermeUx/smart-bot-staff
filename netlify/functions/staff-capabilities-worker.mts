@@ -6,8 +6,8 @@ import {
   waitForRun,
 } from './_shared/staff-capabilities-core.mts'
 import {
+  env,
   getFederatedAction,
-  staffStoreConfig,
   updateFederatedAction,
 } from './_shared/staff-capability-store.mts'
 
@@ -27,8 +27,9 @@ export default async (request: Request) => {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   try {
-    const { serviceKey } = staffStoreConfig()
-    if (!bearer(request) || bearer(request) !== serviceKey) {
+    const internalKey = env('STAFF_CAPABILITIES_INTERNAL_KEY') || env('STAFF_NEXA_SERVICE_KEY')
+    if (!internalKey) return json({ error: 'worker_not_configured' }, 503)
+    if (!bearer(request) || bearer(request) !== internalKey) {
       return json({ error: 'unauthorized' }, 401)
     }
 
