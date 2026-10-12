@@ -1,0 +1,21 @@
+name: Staff Capabilities Production Smoke
+
+on:
+  push:
+    branches:
+      - 'test/staff-capabilities-production-smoke'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Staff capabilities production
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error --location https://app.smartbots.club/.netlify/functions/staff-capabilities)"
+          printf '%s' "$RESPONSE" > /tmp/staff-capabilities.json
+          grep -q '"status":"ok"' /tmp/staff-capabilities.json
+          grep -q '"browserUseConfigured":true' /tmp/staff-capabilities.json
+          grep -q '"web.restaurant.reserve"' /tmp/staff-capabilities.json
+          grep -q '"web.appointment.search"' /tmp/staff-capabilities.json
+          echo "PASS: Staff production capabilities are live and Browser Use is configured."
