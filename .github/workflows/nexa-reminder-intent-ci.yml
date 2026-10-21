@@ -1,0 +1,49 @@
+name: Nexa Reminder Intent CI
+
+on:
+  push:
+    branches:
+      - feature/nexa-assistant-reminder-actions
+    paths:
+      - '.github/workflows/nexa-reminder-intent-ci.yml'
+      - 'netlify/functions/nexa-reminder-intent.mts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck Staff
+        run: npm run typecheck
+
+      - name: Build Staff
+        run: npm run build
+
+      - name: Validate reminder safety contract
+        run: |
+          grep -q "schedule_local_reminder" netlify/functions/nexa-reminder-intent.mts
+          grep -q "device_local_only" netlify/functions/nexa-reminder-intent.mts
+          grep -q "financialExecution: false" netlify/functions/nexa-reminder-intent.mts
+          grep -q "STAFF_NEXA_SERVICE_KEY" netlify/functions/nexa-reminder-intent.mts
+          grep -q "x-nexa-user-id" netlify/functions/nexa-reminder-intent.mts
+          if grep -E -n "payment\.execute|pix.*execute|withdraw" netlify/functions/nexa-reminder-intent.mts; then
+            echo 'Unexpected financial execution capability in reminder classifier.'
+            exit 1
+          fi
