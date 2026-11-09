@@ -27,7 +27,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install project dependencies without modifying lockfiles
         run: npm install --package-lock=false --no-audit --no-fund
       - name: Add matching Capacitor iOS dependency in ephemeral runner
