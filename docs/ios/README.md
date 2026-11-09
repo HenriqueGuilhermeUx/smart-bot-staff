@@ -16,3 +16,7 @@ Existing Capacitor app: `br.com.alternativeventures.staff`; Capacitor major: 8; 
 - Check sign-in, messaging, user data deletion, privacy policy, account deletion and support.
 - Use real device screenshots; do not submit a simple web-wrapper lacking native usability.
 - Never commit signing credentials. No TestFlight upload or App Store submission performed.
+
+## Automated local preparation
+
+After installing the matching `@capacitor/ios` package and checking its lockfile, run `node scripts/prepare-ios.mjs` from the repository root on macOS with Xcode installed. The script refuses non-macOS execution and missing iOS dependencies; it builds the correct web assets then creates/synchronizes the local Capacitor iOS project. It does **not** sign, archive, run device tests or submit anything to Apple.
