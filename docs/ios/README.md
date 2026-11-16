@@ -20,3 +20,11 @@ Existing Capacitor app: `br.com.alternativeventures.staff`; Capacitor major: 8; 
 ## Automated local preparation
 
 After installing the matching `@capacitor/ios` package and checking its lockfile, run `node scripts/prepare-ios.mjs` from the repository root on macOS with Xcode installed. The script refuses non-macOS execution and missing iOS dependencies; it builds the correct web assets then creates/synchronizes the local Capacitor iOS project. It does **not** sign, archive, run device tests or submit anything to Apple.
+
+## Verificação automatizada de voz e captura iOS — 16/11/2026
+
+- O histórico [run #42697832239](https://github.com/HenriqueGuilhermeUx/smart-bot-staff/actions/runs/42697832239) comprovou build unsigned e abertura no simulador iOS para versão anterior do código.
+- O workflow na branch draft agora exige `CFBundleIdentifier=br.com.alternativeventures.staff`, captura screenshot após abrir no iPhone virtual e arquiva o arquivo de QA (commit `8b5b7e9`). A imagem ainda requer inspeção visual; não comprova teste de voz.
+- O preparo iOS agora executa `scripts/ios/verify-voice-usage-descriptions.mjs` (commits `210eab6` / `b540fcf`), que adiciona e valida `NSMicrophoneUsageDescription` e `NSSpeechRecognitionUsageDescription` no `Info.plist` gerado. A finalidade de ambas é explicar o reconhecimento de comandos de voz em português. O script atua apenas em `ios/App/App/Info.plist` no macOS após `npx cap add/sync ios`; **não altera Android, produção ou credenciais**.
+- Os componentes `src/lib/staffVoice.ts` e `src/lib/staffNotifications.ts` fazem uso das permissões nativas de voz e notificações. **A existência de descrições e a compilação não comprovam** prompts funcionais, reconhecimento no iPhone, negação/revogação, não retenção de áudio, disponibilidade do TTS, modo offline e entrega de notificações.
+- Testar no iPhone real com microfone negado, autorizado e revogado; Speech Recognition negado; stop/cancel; notificações negadas e autorizadas; privacidade e exclusão de conta. O bundle ID e o cadastro Play/AAB ainda devem ser reconciliados. Não marcar Fase 2 aprovada.
