@@ -31,4 +31,5 @@ if (!existsSync(join(cwd, "dist"))) {
 }
 const platformExists = existsSync(join(cwd, 'ios'));
 run('npx', ['cap', platformExists ? 'sync' : 'add', 'ios']);
+run('node', ['scripts/ios/verify-voice-usage-descriptions.mjs']);
 console.log('iOS project prepared locally. Validate signing and iPhone behavior before archiving.');
