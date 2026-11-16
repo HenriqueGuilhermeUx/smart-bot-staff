@@ -39,6 +39,17 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO -derivedDataPath "$RUNNER_TEMP/ios-derived" build 2>&1 | tee ios-preflight-build.log
+      - name: Assert voice privacy descriptions in compiled iOS application
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLIST="$RUNNER_TEMP/ios-derived/Build/Products/Debug-iphonesimulator/App.app/Info.plist"
+          test -f "$PLIST"
+          for KEY in NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription; do
+            VALUE="$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST")"
+            test -n "$VALUE"
+            echo "PASS: compiled iOS app includes $KEY"
+          done
       - name: Launch app on an iPhone simulator (smoke test)
         shell: bash
         timeout-minutes: 12
