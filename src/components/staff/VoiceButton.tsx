@@ -166,7 +166,7 @@ export function VoiceButton({
                 O microfone será usado somente enquanto você estiver falando com o Staff. A fala é transformada em texto para executar sua solicitação. O Staff não salva o áudio bruto.
               </p>
               <div className="mt-4 sm:mt-5 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-sm text-slate-400 leading-relaxed">
-                Dependendo do aparelho, o reconhecimento pode acontecer no próprio dispositivo ou pelo serviço de voz configurado no Android. Você pode continuar usando o app por texto a qualquer momento.
+                Dependendo do aparelho e das configurações, o reconhecimento pode utilizar serviços de voz do iOS, Android ou navegador, inclusive com processamento fora do dispositivo. Você pode continuar usando o app por texto a qualquer momento.
               </div>
             </div>
 
